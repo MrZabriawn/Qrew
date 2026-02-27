@@ -74,7 +74,9 @@ export default function DashboardPage() {
     try {
       const [siteDays, worksites] = await Promise.all([
         getOpenSiteDays(),
-        user.role === 'ED' ? getAllWorksites() : getWorksitesByManager(user.id),
+        user.role === 'ED' ? getAllWorksites()
+          : user.role === 'PD' ? getWorksitesByManager(user.id)
+          : getAllWorksites(true), // workers see all active sites
       ]);
       setOpenSiteDays(siteDays);
       setMyWorksites(worksites);
@@ -299,7 +301,7 @@ export default function DashboardPage() {
                  style={{ backgroundColor: '#12122a' }}>
               <p
                 className="font-mono font-bold leading-none tabular-nums"
-                style={{ fontSize: 'clamp(3.5rem, 18vw, 5.5rem)', color: '#ffffff' }}
+                style={{ fontSize: 'clamp(2.5rem, 12vw, 4rem)', color: '#ffffff' }}
               >
                 {padTwo(now.getHours() % 12 || 12)}
                 <span style={{ color: 'var(--accent)' }} className="animate-pulse">:</span>
@@ -331,7 +333,7 @@ export default function DashboardPage() {
             )}
 
             {/* Site picker (shown when user has multiple sites) */}
-            {(isStaff || isPD) && myWorksites.length > 1 && (
+            {myWorksites.length > 1 && (
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
                   Site
@@ -351,8 +353,7 @@ export default function DashboardPage() {
             )}
 
             {/* Punch buttons */}
-            {(isStaff || isPD) && (
-              <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3">
                 {!clockedIn ? (
                   <button
                     onClick={() => handlePunch('IN')}
@@ -384,8 +385,7 @@ export default function DashboardPage() {
                     ) : 'Clock Out'}
                   </button>
                 )}
-              </div>
-            )}
+            </div>
 
             {/* Error */}
             {actionError && (

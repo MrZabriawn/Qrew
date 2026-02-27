@@ -8,22 +8,22 @@
 /* ─── CSS custom properties ────────────────────────────────────────────── */
 :root {
   /* Surface palette */
-  --dark-base:     #ffffff;
-  --dark-surface:  #353A40;
-  --dark-elevated: #3F454C;
-  --dark-border:   #4A5057;
-  --dark-border2:  #4A5057;
+  --dark-base:     #000000;   /* Qrew black — page background */
+  --dark-surface:  #0f1a0f;   /* card / panel surface — black tinted green */
+  --dark-elevated: #172417;   /* inputs, dropdowns, raised elements */
+  --dark-border:   #1e2e1e;   /* subtle dividers */
+  --dark-border2:  #2a3d2a;   /* slightly more visible borders */
 
   /* Text scale */
-  --text-primary: #111827;
-  --text-muted:   #6b7280;
+  --text-primary: #ffffff;    /* Qrew white — primary text */
+  --text-muted:   #7a9a7a;    /* muted — desaturated green-gray */
 
-  /* Accent — HOI blue (fixed) */
-  --accent:       #2323F1;
-  --accent-hover: #1818CC;
-  --accent-900:   #0d0d5e;
-  --accent-800:   #141490;
-  --accent-300:   #8080ff;
+  /* Accent — Qrew green */
+  --accent:       #205620;
+  --accent-hover: #286e28;    /* slightly lighter on hover */
+  --accent-900:   #0a1a0a;
+  --accent-800:   #112211;
+  --accent-300:   #4a8f4a;    /* lighter green for text on dark */
 }
 
 /* ─── Base resets ───────────────────────────────────────────────────────── */
@@ -67,7 +67,7 @@
   /* Primary action — accent color resolved at runtime via CSS var */
   .btn-primary {
     background-color: var(--accent);
-    color: #ffffff;
+    color: #0a0a0a;  /* dark text on bright green for contrast */
   }
   .btn-primary:hover {
     background-color: var(--accent-hover);
@@ -77,11 +77,11 @@
   }
 
   .btn-secondary {
-    @apply bg-transparent text-gray-300 hover:text-white;
+    @apply bg-transparent text-gray-400 hover:text-white;
     border: 1px solid var(--dark-border2);
   }
   .btn-secondary:hover {
-    border-color: #8a9199;
+    border-color: #555555;
   }
 
   .btn-accent {
@@ -100,14 +100,14 @@
   }
 
   .input {
-    @apply w-full px-4 py-2 placeholder-gray-500 focus:outline-none rounded-none;
+    @apply w-full px-4 py-2 placeholder-gray-600 focus:outline-none rounded-none;
     background-color: var(--dark-elevated);
     border: 1px solid var(--dark-border2);
     color: var(--text-primary);
   }
   .input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
   }
 
   .badge {
@@ -116,7 +116,9 @@
   }
 
   .badge-open {
-    @apply bg-green-950 text-green-400 border border-green-900;
+    background-color: var(--accent-900);
+    color: var(--accent);
+    border: 1px solid var(--accent-800);
   }
 
   .badge-closed {
@@ -132,7 +134,7 @@
   }
 
   .badge-pd {
-    @apply bg-blue-950 text-blue-300 border border-blue-900;
+    @apply bg-zinc-900 text-zinc-300 border border-zinc-700;
   }
 
   .badge-to {
