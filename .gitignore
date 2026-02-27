@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+Qrew/node_modules/
+Qrew/functions/node_modules/
+hoi-time-clock/node_modules/
+hoi-time-clock/functions/node_modules/
+
+# Environment variables (contain secrets)
+.env.local
+.env*.local
+Qrew/.env.local
+Qrew/functions/.env
+Qrew/functions/.env.local
+hoi-time-clock/.env.local
+hoi-time-clock/functions/.env
+hoi-time-clock/functions/.env.local
+
+# Firebase service account keys (sensitive credentials)
+**/service-account-key.json
+**/serviceAccountKey.json
+
+# Build artifacts
+Qrew/.next/
+Qrew/out/
+Qrew/tsconfig.tsbuildinfo
+hoi-time-clock/.next/
+hoi-time-clock/out/
+hoi-time-clock/tsconfig.tsbuildinfo
+
+# Windows system files
+desktop.ini
+Thumbs.db
+
+# Accidental files
+Qrew/nul
+hoi-time-clock/nul
+
+# OS
+.DS_Store

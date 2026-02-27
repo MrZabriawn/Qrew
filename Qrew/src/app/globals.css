@@ -1,0 +1,207 @@
+/* Space Mono (monospaced clock/data), Lexend (display headings), Inter (body) */
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Lexend:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── CSS custom properties ────────────────────────────────────────────── */
+:root {
+  /* Surface palette */
+  --dark-base:     #ffffff;
+  --dark-surface:  #353A40;
+  --dark-elevated: #3F454C;
+  --dark-border:   #4A5057;
+  --dark-border2:  #4A5057;
+
+  /* Text scale */
+  --text-primary: #111827;
+  --text-muted:   #6b7280;
+
+  /* Accent — HOI blue (fixed) */
+  --accent:       #2323F1;
+  --accent-hover: #1818CC;
+  --accent-900:   #0d0d5e;
+  --accent-800:   #141490;
+  --accent-300:   #8080ff;
+}
+
+/* ─── Base resets ───────────────────────────────────────────────────────── */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--dark-base);
+    color: var(--text-primary);
+  }
+
+  select {
+    background-color: var(--dark-elevated);
+    border-color: var(--dark-border2);
+    color: var(--text-primary);
+  }
+
+  select option {
+    background-color: var(--dark-elevated);
+    color: var(--text-primary);
+  }
+}
+
+/* ─── Component layer ───────────────────────────────────────────────────── */
+@layer components {
+
+  .btn {
+    @apply px-4 py-2 font-bold tracking-widest uppercase transition-all duration-150
+           focus:outline-none rounded-none;
+  }
+
+  /* Primary action — accent color resolved at runtime via CSS var */
+  .btn-primary {
+    background-color: var(--accent);
+    color: #ffffff;
+  }
+  .btn-primary:hover {
+    background-color: var(--accent-hover);
+  }
+  .btn-primary:active {
+    opacity: 0.85;
+  }
+
+  .btn-secondary {
+    @apply bg-transparent text-gray-300 hover:text-white;
+    border: 1px solid var(--dark-border2);
+  }
+  .btn-secondary:hover {
+    border-color: #8a9199;
+  }
+
+  .btn-accent {
+    @apply bg-transparent border border-red-900 text-red-400
+           hover:border-red-600 hover:text-red-300;
+  }
+
+  .btn-lg {
+    @apply px-6 py-4 text-sm;
+  }
+
+  .card {
+    background-color: var(--dark-surface);
+    border: 1px solid var(--dark-border);
+    @apply p-6;
+  }
+
+  .input {
+    @apply w-full px-4 py-2 placeholder-gray-500 focus:outline-none rounded-none;
+    background-color: var(--dark-elevated);
+    border: 1px solid var(--dark-border2);
+    color: var(--text-primary);
+  }
+  .input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+
+  .badge {
+    @apply inline-flex items-center px-3 py-1 text-xs font-mono font-bold
+           tracking-widest uppercase;
+  }
+
+  .badge-open {
+    @apply bg-green-950 text-green-400 border border-green-900;
+  }
+
+  .badge-closed {
+    background-color: var(--dark-elevated);
+    border: 1px solid var(--dark-border2);
+    @apply text-gray-500;
+  }
+
+  .badge-ed {
+    background-color: var(--accent-900);
+    color: var(--accent-300);
+    border: 1px solid var(--accent-800);
+  }
+
+  .badge-pd {
+    @apply bg-blue-950 text-blue-300 border border-blue-900;
+  }
+
+  .badge-to {
+    background-color: var(--dark-elevated);
+    border: 1px solid var(--dark-border2);
+    @apply text-gray-400;
+  }
+
+  .field-label {
+    @apply text-[9px] tracking-[0.35em] uppercase font-mono mb-1;
+    color: var(--text-muted);
+  }
+
+  .divider {
+    border-top: 1px solid var(--dark-border);
+  }
+
+  /* Utility classes that apply the dynamic accent color */
+  .accent-bg {
+    background-color: var(--accent);
+  }
+  .accent-bg:hover {
+    background-color: var(--accent-hover);
+  }
+  .accent-text {
+    color: var(--accent);
+  }
+  .accent-border {
+    border-color: var(--accent);
+  }
+}
+
+/* ─── Loading spinner ───────────────────────────────────────────────────── */
+.spinner {
+  border: 2px solid var(--dark-border2);
+  border-top: 2px solid var(--accent);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ─── Entrance animation ────────────────────────────────────────────────── */
+.fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Clock-in confirmation glow (pulses the accent color) ──────────────── */
+@keyframes clockInGlow {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); }
+  70%  { box-shadow: 0 0 0 12px color-mix(in srgb, var(--accent) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+
+.clock-in-glow {
+  animation: clockInGlow 0.6s ease-out;
+}
+
+@media (max-width: 640px) {
+  .card   { @apply p-4; }
+  .btn-lg { @apply text-sm; }
+}

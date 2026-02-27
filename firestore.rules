@@ -1,0 +1,145 @@
+// Firestore Security Rules for HOI Time Clock
+// These rules are the authoritative access-control layer — they run on Google's servers
+// and cannot be bypassed by client-side code.
+//
+// Role hierarchy (highest → lowest privilege):
+//   ED  (Executive Director) — full read/write access to everything
+//   PD  (Program Director)   — can manage worksites/siteDays they oversee; cannot delete users
+//   Workers (TECH/COORD/TO)  — can read most data and create punches; cannot modify admin data
+//
+// IMPORTANT: Every request that reads the user's role calls getUser(), which performs an
+// additional Firestore read. Firestore bills per read, so minimize rule complexity where possible.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ----- HELPER FUNCTIONS -----
+    // Reusable predicates that are composed in the collection rules below.
+
+    // Returns true if the request includes a valid Firebase Auth token
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Fetches the requesting user's Firestore document to read their role.
+    // NOTE: This is a cross-document read inside a rule — it counts toward billing.
+    function getUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Returns true if the authenticated user has the Executive Director role
+    function isED() {
+      return isAuthenticated() && getUser().role == 'ED';
+    }
+
+    // Returns true if the authenticated user has the Program Director role
+    function isPD() {
+      return isAuthenticated() && getUser().role == 'PD';
+    }
+
+    // Returns true if the authenticated user has any worker-level role (TO, TECH, or COORD)
+    function isWorker() {
+      return isAuthenticated() &&
+             (getUser().role == 'TO' || getUser().role == 'TECH' || getUser().role == 'COORD');
+    }
+
+    // Returns true for either ED or PD — used for management operations that both roles share
+    function isEDorPD() {
+      return isED() || isPD();
+    }
+
+    // ----- COLLECTION RULES -----
+
+    // Users collection (/users/{userId})
+    // All authenticated users can read any user document (needed to display names/roles).
+    // A user can create their own document on first sign-in (bootstrap/self-registration).
+    // EDs have full update/delete. A user may update ONLY their own accentMode preference.
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow delete: if isED();
+      allow update: if isED() ||
+        (isAuthenticated() && request.auth.uid == userId &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['accentMode']));
+    }
+
+    // Organizations and QBO integration subcollections.
+    // Only ED (payroll admin) may read/write QBO connection or mapping data.
+    // Encrypted tokens are stored here — never expose to worker or PD roles.
+    match /organizations/{orgId} {
+      allow read, write: if isED();
+
+      match /qboConnection/{doc} {
+        allow read, write: if isED();
+      }
+      match /qboEmployeeMappings/{mappingId} {
+        allow read, write: if isED();
+      }
+      match /qboCustomerMappings/{mappingId} {
+        allow read, write: if isED();
+      }
+      match /qboClassMappings/{mappingId} {
+        allow read, write: if isED();
+      }
+    }
+
+    // Worksites collection (/worksites/{worksiteId})
+    // All authenticated users can read worksites (workers need to see open sites to clock in).
+    // EDs and PDs can create/update worksites (e.g., adding a new site or editing its address).
+    // Only EDs can delete worksites (to prevent accidental data loss by PDs).
+    match /worksites/{worksiteId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isEDorPD();
+      allow delete: if isED();
+    }
+
+    // SiteDays collection (/siteDays/{siteDayId})
+    // All authenticated users can read SiteDays (workers need to see which sites are OPEN).
+    // EDs and PDs can create SiteDays (start the day) and update them (end the day, sync calendar).
+    // Workers cannot modify SiteDays — they can only punch in/out.
+    match /siteDays/{siteDayId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isEDorPD();
+    }
+
+    // Punches collection (/punches/{punchId})
+    // All authenticated users can read punches (workers view their own punch history).
+    // All authenticated users can create punches (workers clock in/out; EDs/PDs can also punch).
+    // Only EDs/PDs can update or delete punches (for corrections; workers cannot alter their records).
+    match /punches/{punchId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isEDorPD();
+    }
+
+    // Shifts collection (/shifts/{shiftId})
+    // All authenticated users can read shifts (workers view their own shift summaries).
+    // Only EDs/PDs can write shifts — shifts are derived from punches and written by the app
+    // on end-of-day, not directly by workers.
+    match /shifts/{shiftId} {
+      allow read: if isAuthenticated();
+      allow write: if isEDorPD();
+    }
+
+    // Audit logs collection (/auditLogs/{logId})
+    // ONLY the ED can read audit logs — this data is sensitive (tracks all administrative actions).
+    // All authenticated users can create audit log entries (the app writes them on every action).
+    // No updates or deletes are permitted — audit logs must be immutable for compliance.
+    match /auditLogs/{logId} {
+      allow read: if isED();
+      allow create: if isAuthenticated();
+    }
+
+    // Report artifacts collection (/reportArtifacts/{reportId})
+    // EDs have full access.
+    // Other users can read a specific report only if their UID appears in the
+    // `sharedWithUserIds` array of that document — this supports the "share report" feature.
+    // Only EDs can generate, update, or delete reports.
+    match /reportArtifacts/{reportId} {
+      allow read: if isED() ||
+        get(/databases/$(database)/documents/reportArtifacts/$(reportId)).data.sharedWithUserIds.hasAny([request.auth.uid]);
+      allow create, update, delete: if isED();
+    }
+  }
+}
