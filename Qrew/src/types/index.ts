@@ -40,6 +40,8 @@ export interface Worksite {
   address: string;  // Full street address; also appears in Google Calendar events
   active: boolean;  // Inactive worksites are hidden from workers
   managers: string[]; // user IDs of PDs assigned to manage this worksite
+  lat?: number;     // Latitude — geocoded from address; required for clock-in geo-verification
+  lng?: number;     // Longitude — geocoded from address; required for clock-in geo-verification
   createdAt: Date;
 }
 
@@ -78,6 +80,8 @@ export interface Punch {
   type: PunchType;    // 'IN' or 'OUT'
   timestamp: Date;    // When the punch occurred
   source: PunchSource;
+  lat?: number;       // Worker's GPS latitude at time of punch (captured during geo-verification)
+  lng?: number;       // Worker's GPS longitude at time of punch
   createdAt: Date;
 }
 

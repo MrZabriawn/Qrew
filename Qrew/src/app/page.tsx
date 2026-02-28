@@ -53,18 +53,21 @@ export default function HomePage() {
         <div className="flex-1 flex flex-col items-center justify-center px-6 fade-in">
           <div className="w-full max-w-[320px]">
 
-            {/* Logo */}
+            {/* HOI Logo */}
             <div className="flex justify-center mb-10">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/hoi-logo.png"
+                src="/hoi-logo-square.png"
                 alt="Housing Opportunities Inc."
-                className="h-28 w-auto object-contain"
+                className="h-24 w-24 object-contain"
               />
             </div>
 
             {/* Heading */}
             <div className="text-center mb-8">
+              <p className="text-[10px] tracking-[0.3em] uppercase font-mono text-gray-400 mb-1">
+                Qrew · Housing Workforce
+              </p>
               <h1 className="text-xl font-semibold text-gray-900 tracking-tight">
                 Staff Time Clock
               </h1>
@@ -113,10 +116,18 @@ export default function HomePage() {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 text-center">
-          <p className="text-[9px] text-gray-300 font-mono tracking-widest uppercase">
-            Qrew · Elder Systems
-          </p>
+        <div className="px-6 py-5 border-t border-gray-100">
+          <div className="flex items-center justify-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/hoi-logo-square.png"
+              alt="HOI"
+              className="h-6 w-6 object-contain opacity-50"
+            />
+            <p className="text-[9px] text-gray-400 font-mono tracking-widest uppercase">
+              Qrew · Elder Systems · Housing Workforce
+            </p>
+          </div>
         </div>
 
       </div>

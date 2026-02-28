@@ -17,12 +17,14 @@ import {
   getPunchesBySiteDay, createPunch, createShift, getAllUsers, createAuditLog,
 } from '@/lib/db';
 import type { Worksite, SiteDay, User } from '@/types';
-import { formatTime, getLocalDateString, forceCloseOpenShifts } from '@/lib/utils';
+import { formatTime, getLocalDateString, forceCloseOpenShifts, geocodeAddress } from '@/lib/utils';
 
 interface WorksiteFormData {
   name: string;
   address: string;
   active: boolean;
+  lat?: number;
+  lng?: number;
 }
 
 export default function WorksitesPage() {
@@ -86,14 +88,14 @@ export default function WorksitesPage() {
 
   const openCreateModal = () => {
     setEditingWorksite(null);
-    setFormData({ name: '', address: '', active: true });
+    setFormData({ name: '', address: '', active: true, lat: undefined, lng: undefined });
     setFormError('');
     setShowModal(true);
   };
 
   const openEditModal = (worksite: Worksite) => {
     setEditingWorksite(worksite);
-    setFormData({ name: worksite.name, address: worksite.address, active: worksite.active });
+    setFormData({ name: worksite.name, address: worksite.address, active: worksite.active, lat: worksite.lat, lng: worksite.lng });
     setFormError('');
     setShowModal(true);
   };
@@ -104,11 +106,22 @@ export default function WorksitesPage() {
     if (!formData.address.trim()) { setFormError('Address is required.'); return; }
     setFormLoading(true);
     try {
+      // Geocode the address to lat/lng for geo-verification on clock-in.
+      // Re-geocode if address changed from what's stored, or if coords are missing.
+      const addressChanged = editingWorksite && formData.address.trim() !== editingWorksite.address;
+      const needsGeocode = !formData.lat || !formData.lng || addressChanged;
+      let geoFields: { lat?: number; lng?: number } = { lat: formData.lat, lng: formData.lng };
+      if (needsGeocode) {
+        const coords = await geocodeAddress(formData.address.trim());
+        geoFields = coords ? { lat: coords.lat, lng: coords.lng } : {};
+      }
+
       if (editingWorksite) {
         await updateWorksite(editingWorksite.id, {
           name: formData.name.trim(),
           address: formData.address.trim(),
           active: formData.active,
+          ...geoFields,
         });
         await createAuditLog({
           actorUserId: user.id,
@@ -124,6 +137,7 @@ export default function WorksitesPage() {
           address: formData.address.trim(),
           active: formData.active,
           managers: [],
+          ...geoFields,
         });
         await createAuditLog({
           actorUserId: user.id,
@@ -279,29 +293,29 @@ export default function WorksitesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-dark-base text-white">
+    <div className="min-h-screen bg-white max-w-md mx-auto">
       {/* Header */}
-      <header className="border-b border-dark-border px-4 py-3 flex items-center justify-between sticky top-0 bg-dark-base z-20">
+      <header className="border-b border-gray-100 px-4 py-3 flex items-center justify-between sticky top-0 bg-white z-20">
         <div>
-          <p className="text-[9px] text-gray-600 tracking-[0.4em] uppercase font-mono">Elder Systems</p>
-          <p className="text-[11px] font-bold text-white tracking-[0.2em] uppercase font-mono">Housing Workforce</p>
+          <p className="text-[8px] text-gray-400 tracking-[0.4em] uppercase font-mono">Elder Systems</p>
+          <p className="text-[11px] font-bold tracking-[0.25em] uppercase font-mono"
+             style={{ color: 'var(--accent)' }}>Housing Workforce</p>
         </div>
         <button
           onClick={signOut}
-          className="flex items-center gap-2 text-[9px] tracking-[0.2em] uppercase text-gray-500
-                     font-mono border border-dark-border2 px-3 py-1.5
-                     hover:border-gray-500 hover:text-gray-300 transition-colors"
+          className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
+          title="Sign out"
         >
-          <LogOut className="w-3 h-3" />Sign Out
+          <LogOut className="w-5 h-5" />
         </button>
       </header>
 
-      <main className="px-4 sm:px-6 py-6 pb-20">
+      <main className="px-4 sm:px-6 py-6 pb-24">
         {/* Page title + Add button */}
-        <div className="flex items-center justify-between mb-6 border-b border-dark-border pb-4">
+        <div className="flex items-center justify-between mb-6 border-b border-gray-100 pb-4">
           <div>
             <p className="field-label">Operations</p>
-            <h2 className="text-lg font-bold text-white tracking-wide mt-1">WORKSITES</h2>
+            <h2 className="text-lg font-bold text-gray-900 tracking-wide mt-1">WORKSITES</h2>
           </div>
           {user.role === 'ED' && (
             <button onClick={openCreateModal} className="btn btn-primary">
@@ -369,7 +383,8 @@ export default function WorksitesPage() {
                       )}
 
                       {openSiteDay && (
-                        <p className="text-xs text-green-600 mt-1 font-medium">
+                        <p className="text-xs mt-1 font-medium"
+                           style={{ color: 'var(--accent)' }}>
                           Open since {formatTime(openSiteDay.startedAt)}
                         </p>
                       )}
@@ -463,9 +478,14 @@ export default function WorksitesPage() {
                 <input
                   className="input"
                   value={formData.address}
-                  onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, address: e.target.value, lat: undefined, lng: undefined }))}
                   placeholder="Full street address"
                 />
+                <p className="text-xs mt-1" style={{ color: formData.lat ? 'var(--accent)' : '#9ca3af' }}>
+                  {formData.lat
+                    ? `Coordinates on file — geo-check active`
+                    : 'Coordinates will be geocoded from address on save'}
+                </p>
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -558,18 +578,18 @@ export default function WorksitesPage() {
       )}
 
       {/* Bottom navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-dark-base border-t border-dark-border z-20 grid grid-cols-4">
-        <button onClick={() => router.push('/dashboard')} className="flex flex-col items-center justify-center gap-1 py-3 border-r border-dark-border text-gray-700 hover:text-gray-400 transition-colors">
-          <Clock className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Home</span>
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-100 z-20 grid grid-cols-4">
+        <button onClick={() => router.push('/dashboard')} className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: '#9ca3af' }}>
+          <Clock className="w-5 h-5" /><span className="text-[10px] font-medium">Home</span>
         </button>
-        <button className="flex flex-col items-center justify-center gap-1 py-3 border-r border-dark-border text-primary-500">
-          <Building2 className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Sites</span>
+        <button className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: 'var(--accent)' }}>
+          <Building2 className="w-5 h-5" /><span className="text-[10px] font-medium">Sites</span>
         </button>
-        <button onClick={() => router.push('/reports')} className="flex flex-col items-center justify-center gap-1 py-3 border-r border-dark-border text-gray-700 hover:text-gray-400 transition-colors">
-          <FileText className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Reports</span>
+        <button onClick={() => router.push('/reports')} className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: '#9ca3af' }}>
+          <FileText className="w-5 h-5" /><span className="text-[10px] font-medium">Reports</span>
         </button>
-        <button onClick={() => router.push('/admin')} className="flex flex-col items-center justify-center gap-1 py-3 text-gray-700 hover:text-gray-400 transition-colors">
-          <Users className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Admin</span>
+        <button onClick={() => router.push('/admin')} className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: '#9ca3af' }}>
+          <Users className="w-5 h-5" /><span className="text-[10px] font-medium">Admin</span>
         </button>
       </nav>
     </div>

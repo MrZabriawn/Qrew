@@ -163,28 +163,28 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-dark-base text-white">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="border-b border-dark-border px-4 py-3 flex items-center justify-between sticky top-0 bg-dark-base z-20">
+      <header className="border-b border-gray-100 px-4 py-3 flex items-center justify-between sticky top-0 bg-white z-20">
         <div>
-          <p className="text-[9px] text-gray-600 tracking-[0.4em] uppercase font-mono">Elder Systems</p>
-          <p className="text-[11px] font-bold text-white tracking-[0.2em] uppercase font-mono">Housing Workforce</p>
+          <p className="text-[8px] text-gray-400 tracking-[0.4em] uppercase font-mono">Elder Systems</p>
+          <p className="text-[11px] font-bold tracking-[0.25em] uppercase font-mono"
+             style={{ color: 'var(--accent)' }}>Housing Workforce</p>
         </div>
         <button
           onClick={signOut}
-          className="flex items-center gap-2 text-[9px] tracking-[0.2em] uppercase text-gray-500
-                     font-mono border border-dark-border2 px-3 py-1.5
-                     hover:border-gray-500 hover:text-gray-300 transition-colors"
+          className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
+          title="Sign out"
         >
-          <LogOut className="w-3 h-3" />Sign Out
+          <LogOut className="w-5 h-5" />
         </button>
       </header>
 
-      <main className="px-4 sm:px-6 py-6 pb-20">
-        <div className="border-b border-dark-border pb-4 mb-6">
+      <main className="px-4 sm:px-6 py-6 pb-24">
+        <div className="border-b border-gray-100 pb-4 mb-6">
           <p className="field-label">System</p>
-          <h2 className="text-lg font-bold text-white tracking-wide mt-1">USER MANAGEMENT</h2>
-          <p className="text-xs text-gray-600 font-mono mt-1">Roles, tiers, and account status for all HOI staff</p>
+          <h2 className="text-lg font-bold text-gray-900 tracking-wide mt-1">USER MANAGEMENT</h2>
+          <p className="text-xs text-gray-500 font-mono mt-1">Roles, tiers, and account status for all HOI staff</p>
         </div>
 
         {/* Error banner */}
@@ -197,7 +197,7 @@ export default function AdminPage() {
         )}
 
         {/* Info note about new users */}
-        <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-2xl text-blue-700 text-sm">
           New staff sign in with their HOI Google Workspace account — they appear here automatically
           with the default Operator role. Change their role below and click Save.
         </div>
@@ -206,7 +206,7 @@ export default function AdminPage() {
           <div className="flex justify-center py-12"><div className="spinner" /></div>
         ) : users.length === 0 ? (
           <div className="card text-center py-12">
-            <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900">No Users Yet</h3>
             <p className="text-gray-500 text-sm mt-2">
               Users appear here after they sign in for the first time.
@@ -231,7 +231,8 @@ export default function AdminPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium text-gray-900">{u.displayName}</p>
                         {isSelf && (
-                          <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full">
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                                style={{ backgroundColor: 'var(--accent-900)', color: 'var(--accent)' }}>
                             You
                           </span>
                         )}
@@ -325,18 +326,18 @@ export default function AdminPage() {
       </main>
 
       {/* Bottom navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-dark-base border-t border-dark-border z-20 grid grid-cols-4">
-        <button onClick={() => router.push('/dashboard')} className="flex flex-col items-center justify-center gap-1 py-3 border-r border-dark-border text-gray-700 hover:text-gray-400 transition-colors">
-          <Clock className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Home</span>
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-20 grid grid-cols-4">
+        <button onClick={() => router.push('/dashboard')} className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: '#9ca3af' }}>
+          <Clock className="w-5 h-5" /><span className="text-[10px] font-medium">Home</span>
         </button>
-        <button onClick={() => router.push('/worksites')} className="flex flex-col items-center justify-center gap-1 py-3 border-r border-dark-border text-gray-700 hover:text-gray-400 transition-colors">
-          <Building2 className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Sites</span>
+        <button onClick={() => router.push('/worksites')} className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: '#9ca3af' }}>
+          <Building2 className="w-5 h-5" /><span className="text-[10px] font-medium">Sites</span>
         </button>
-        <button onClick={() => router.push('/reports')} className="flex flex-col items-center justify-center gap-1 py-3 border-r border-dark-border text-gray-700 hover:text-gray-400 transition-colors">
-          <FileText className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Reports</span>
+        <button onClick={() => router.push('/reports')} className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: '#9ca3af' }}>
+          <FileText className="w-5 h-5" /><span className="text-[10px] font-medium">Reports</span>
         </button>
-        <button className="flex flex-col items-center justify-center gap-1 py-3 text-primary-500">
-          <Users className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Admin</span>
+        <button className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: 'var(--accent)' }}>
+          <Users className="w-5 h-5" /><span className="text-[10px] font-medium">Admin</span>
         </button>
       </nav>
     </div>

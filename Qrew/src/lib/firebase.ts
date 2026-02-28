@@ -34,7 +34,7 @@ const db = getFirestore(app);
 // Google Workspace domain, so personal Gmail accounts are rejected at the OAuth screen.
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
-  hd: process.env.NEXT_PUBLIC_HOI_WORKSPACE_DOMAIN || 'housingopportunities.org',
+  hd: process.env.NEXT_PUBLIC_HOI_WORKSPACE_DOMAIN || 'housingopps.org',
   // Always show the account picker even if the user is already signed in,
   // so workers on shared devices can choose the correct account
   prompt: 'select_account'

@@ -27,19 +27,19 @@ function formatTs(date: Date): string {
 }
 
 const ACTION_COLOR: Record<string, string> = {
-  USER_CREATED:      'text-green-400',
-  USER_UPDATED:      'text-blue-400',
-  USER_DELETED:      'text-red-400',
-  WORKSITE_CREATED:  'text-green-400',
-  WORKSITE_UPDATED:  'text-blue-400',
-  WORKSITE_DELETED:  'text-red-400',
-  SITEDAY_STARTED:   'text-green-400',
-  SITEDAY_ENDED:     'text-orange-400',
-  PUNCH_CREATED:     'text-accent-300',
-  PUNCH_EDITED:      'text-blue-400',
-  PUNCH_DELETED:     'text-red-400',
-  REPORT_GENERATED:  'text-purple-400',
-  REPORT_SHARED:     'text-purple-300',
+  USER_CREATED:      'text-green-700',
+  USER_UPDATED:      'text-blue-700',
+  USER_DELETED:      'text-red-600',
+  WORKSITE_CREATED:  'text-green-700',
+  WORKSITE_UPDATED:  'text-blue-700',
+  WORKSITE_DELETED:  'text-red-600',
+  SITEDAY_STARTED:   'text-green-700',
+  SITEDAY_ENDED:     'text-orange-600',
+  PUNCH_CREATED:     'text-emerald-700',
+  PUNCH_EDITED:      'text-blue-700',
+  PUNCH_DELETED:     'text-red-600',
+  REPORT_GENERATED:  'text-purple-700',
+  REPORT_SHARED:     'text-purple-600',
 };
 
 export default function AuditPage() {
@@ -92,37 +92,37 @@ export default function AuditPage() {
   const entityTypes: EntityType[] = ['USER', 'WORKSITE', 'SITEDAY', 'PUNCH', 'REPORT'];
 
   return (
-    <div className="min-h-screen bg-dark-base text-white">
+    <div className="min-h-screen bg-white">
 
       {/* Header */}
-      <header className="border-b border-dark-border px-4 py-3 flex items-center justify-between sticky top-0 bg-dark-base z-20">
+      <header className="border-b border-gray-100 px-4 py-3 flex items-center justify-between sticky top-0 bg-white z-20">
         <div>
-          <p className="text-[9px] text-gray-600 tracking-[0.4em] uppercase font-mono">Elder Systems</p>
-          <p className="text-[11px] font-bold text-white tracking-[0.2em] uppercase font-mono">Housing Workforce</p>
+          <p className="text-[8px] text-gray-400 tracking-[0.4em] uppercase font-mono">Elder Systems</p>
+          <p className="text-[11px] font-bold tracking-[0.25em] uppercase font-mono"
+             style={{ color: 'var(--accent)' }}>Housing Workforce</p>
         </div>
         <button
           onClick={signOut}
-          className="flex items-center gap-2 text-[9px] tracking-[0.2em] uppercase text-gray-500
-                     font-mono border border-dark-border2 px-3 py-1.5
-                     hover:border-gray-500 hover:text-gray-300 transition-colors"
+          className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
+          title="Sign out"
         >
-          <LogOut className="w-3 h-3" />Sign Out
+          <LogOut className="w-5 h-5" />
         </button>
       </header>
 
-      <main className="px-4 sm:px-6 py-6 pb-20">
+      <main className="px-4 sm:px-6 py-6 pb-24">
 
         {/* Title */}
-        <div className="border-b border-dark-border pb-4 mb-6">
+        <div className="border-b border-gray-100 pb-4 mb-6">
           <p className="field-label">Compliance</p>
-          <h2 className="text-lg font-bold text-white tracking-wide mt-1">AUDIT LOG</h2>
-          <p className="text-xs font-mono mt-1" style={{ color: 'var(--text-muted)' }}>
+          <h2 className="text-lg font-bold text-gray-900 tracking-wide mt-1">AUDIT LOG</h2>
+          <p className="text-xs font-mono mt-1 text-gray-500">
             All system actions — newest first
           </p>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-950 border border-red-800 rounded text-red-400 text-sm flex items-center gap-2">
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm flex items-center gap-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />{error}
           </div>
         )}
@@ -152,9 +152,9 @@ export default function AuditPage() {
           <div className="flex justify-center py-12"><div className="spinner" /></div>
         ) : logs.length === 0 ? (
           <div className="card text-center py-12">
-            <FileText className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
-            <p className="font-medium text-white">No audit logs yet</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+            <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <p className="font-medium text-gray-900">No audit logs yet</p>
+            <p className="text-xs mt-1 text-gray-500">
               Actions are logged automatically as the system is used.
             </p>
           </div>
@@ -179,23 +179,23 @@ export default function AuditPage() {
                         <span className={`font-mono text-xs font-bold ${ACTION_COLOR[log.actionType] ?? 'text-gray-300'}`}>
                           {log.actionType}
                         </span>
-                        <span className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
+                        <span className="text-[10px] font-mono text-gray-500">
                           {log.entityType} · {log.entityId.slice(0, 8)}…
                         </span>
                       </div>
-                      <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                      <p className="text-xs mt-1 text-gray-500">
                         {actor ? actor.displayName : log.actorUserId.slice(0, 8)}
-                        <span className="mx-1.5 text-gray-700">·</span>
+                        <span className="mx-1.5 text-gray-300">·</span>
                         {formatTs(logDate)}
                       </p>
                       {log.reason && (
-                        <p className="text-xs mt-0.5 italic" style={{ color: 'var(--text-muted)' }}>
+                        <p className="text-xs mt-0.5 italic text-gray-400">
                           {log.reason}
                         </p>
                       )}
                     </div>
                     {hasDiff && (
-                      <button className="shrink-0 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                      <button className="shrink-0 mt-0.5 text-gray-400">
                         {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       </button>
                     )}
@@ -203,12 +203,11 @@ export default function AuditPage() {
 
                   {/* Expanded diff */}
                   {expanded && (
-                    <div className="mt-3 border-t border-dark-border pt-3 space-y-2">
+                    <div className="mt-3 border-t border-gray-100 pt-3 space-y-2">
                       {log.beforeJson && (
                         <div>
                           <p className="field-label mb-1">Before</p>
-                          <pre className="text-xs font-mono p-2 rounded overflow-x-auto text-red-400"
-                               style={{ backgroundColor: 'var(--accent-900)' }}>
+                          <pre className="text-xs font-mono p-3 rounded-xl overflow-x-auto text-red-700 bg-red-50 border border-red-100">
                             {JSON.stringify(JSON.parse(log.beforeJson), null, 2)}
                           </pre>
                         </div>
@@ -216,8 +215,7 @@ export default function AuditPage() {
                       {log.afterJson && (
                         <div>
                           <p className="field-label mb-1">After</p>
-                          <pre className="text-xs font-mono p-2 rounded overflow-x-auto text-green-400"
-                               style={{ backgroundColor: 'var(--accent-900)' }}>
+                          <pre className="text-xs font-mono p-3 rounded-xl overflow-x-auto text-green-800 bg-green-50 border border-green-100">
                             {JSON.stringify(JSON.parse(log.afterJson), null, 2)}
                           </pre>
                         </div>
@@ -232,18 +230,18 @@ export default function AuditPage() {
       </main>
 
       {/* Bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-dark-base border-t border-dark-border z-20 grid grid-cols-4">
-        <button onClick={() => router.push('/dashboard')} className="flex flex-col items-center justify-center gap-1 py-3 border-r border-dark-border text-gray-700 hover:text-gray-400 transition-colors">
-          <Clock className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Home</span>
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-20 grid grid-cols-4">
+        <button onClick={() => router.push('/dashboard')} className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: '#9ca3af' }}>
+          <Clock className="w-5 h-5" /><span className="text-[10px] font-medium">Home</span>
         </button>
-        <button onClick={() => router.push('/worksites')} className="flex flex-col items-center justify-center gap-1 py-3 border-r border-dark-border text-gray-700 hover:text-gray-400 transition-colors">
-          <Building2 className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Sites</span>
+        <button onClick={() => router.push('/worksites')} className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: '#9ca3af' }}>
+          <Building2 className="w-5 h-5" /><span className="text-[10px] font-medium">Sites</span>
         </button>
-        <button onClick={() => router.push('/reports')} className="flex flex-col items-center justify-center gap-1 py-3 border-r border-dark-border text-gray-700 hover:text-gray-400 transition-colors">
-          <FileText className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Reports</span>
+        <button onClick={() => router.push('/reports')} className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: '#9ca3af' }}>
+          <FileText className="w-5 h-5" /><span className="text-[10px] font-medium">Reports</span>
         </button>
-        <button className="flex flex-col items-center justify-center gap-1 py-3" style={{ color: 'var(--accent-300)' }}>
-          <Users className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Admin</span>
+        <button className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: 'var(--accent)' }}>
+          <Users className="w-5 h-5" /><span className="text-[10px] font-medium">Admin</span>
         </button>
       </nav>
 

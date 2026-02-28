@@ -112,11 +112,11 @@ export default function QboPage() {
   const isUnconfigured = status === 'unconfigured';
 
   const statusConfig = {
-    active:        { label: 'Connected',      color: 'text-green-400',  dot: 'bg-green-500' },
-    expired:       { label: 'Token Expired',  color: 'text-orange-400', dot: 'bg-orange-400' },
-    disconnected:  { label: 'Not Connected',  color: 'text-gray-400',   dot: 'bg-gray-500' },
-    loading:       { label: 'Checking…',      color: 'text-gray-500',   dot: 'bg-gray-600' },
-    unconfigured:  { label: 'Not Configured', color: 'text-yellow-400', dot: 'bg-yellow-500' },
+    active:        { label: 'Connected',      color: 'text-green-700',  dot: 'bg-green-500' },
+    expired:       { label: 'Token Expired',  color: 'text-orange-600', dot: 'bg-orange-400' },
+    disconnected:  { label: 'Not Connected',  color: 'text-gray-500',   dot: 'bg-gray-400' },
+    loading:       { label: 'Checking…',      color: 'text-gray-400',   dot: 'bg-gray-300' },
+    unconfigured:  { label: 'Not Configured', color: 'text-yellow-700', dot: 'bg-yellow-500' },
   }[status];
 
   const syncActions = [
@@ -126,46 +126,46 @@ export default function QboPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-dark-base text-white">
+    <div className="min-h-screen bg-white">
 
       {/* Header */}
-      <header className="border-b border-dark-border px-4 py-3 flex items-center justify-between sticky top-0 bg-dark-base z-20">
+      <header className="border-b border-gray-100 px-4 py-3 flex items-center justify-between sticky top-0 bg-white z-20">
         <div>
-          <p className="text-[9px] text-gray-600 tracking-[0.4em] uppercase font-mono">Elder Systems</p>
-          <p className="text-[11px] font-bold text-white tracking-[0.2em] uppercase font-mono">Housing Workforce</p>
+          <p className="text-[8px] text-gray-400 tracking-[0.4em] uppercase font-mono">Elder Systems</p>
+          <p className="text-[11px] font-bold tracking-[0.25em] uppercase font-mono"
+             style={{ color: 'var(--accent)' }}>Housing Workforce</p>
         </div>
         <button
           onClick={signOut}
-          className="flex items-center gap-2 text-[9px] tracking-[0.2em] uppercase text-gray-500
-                     font-mono border border-dark-border2 px-3 py-1.5
-                     hover:border-gray-500 hover:text-gray-300 transition-colors"
+          className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
+          title="Sign out"
         >
-          <LogOut className="w-3 h-3" />Sign Out
+          <LogOut className="w-5 h-5" />
         </button>
       </header>
 
-      <main className="px-4 sm:px-6 py-6 pb-20">
+      <main className="px-4 sm:px-6 py-6 pb-24">
 
         {/* Title */}
-        <div className="border-b border-dark-border pb-4 mb-6">
+        <div className="border-b border-gray-100 pb-4 mb-6">
           <p className="field-label">Payroll</p>
-          <h2 className="text-lg font-bold text-white tracking-wide mt-1">QUICKBOOKS ONLINE</h2>
-          <p className="text-xs font-mono mt-1" style={{ color: 'var(--text-muted)' }}>
+          <h2 className="text-lg font-bold text-gray-900 tracking-wide mt-1">QUICKBOOKS ONLINE</h2>
+          <p className="text-xs font-mono mt-1 text-gray-500">
             OAuth connection · employee mappings · time activity sync
           </p>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-950 border border-red-800 rounded text-red-400 text-sm flex items-center gap-2">
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm flex items-center gap-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />{error}
             <button onClick={() => setError(null)} className="ml-auto">✕</button>
           </div>
         )}
         {syncResult && (
-          <div className={`mb-4 p-3 rounded border text-sm flex items-center gap-2 ${
+          <div className={`mb-4 p-4 rounded-2xl border text-sm flex items-center gap-2 ${
             syncResult.success
-              ? 'bg-green-950 border-green-800 text-green-400'
-              : 'bg-red-950 border-red-800 text-red-400'
+              ? 'bg-green-50 border-green-200 text-green-800'
+              : 'bg-red-50 border-red-200 text-red-700'
           }`}>
             {syncResult.success
               ? <CheckCircle className="w-4 h-4 flex-shrink-0" />
@@ -217,10 +217,9 @@ export default function QboPage() {
           </div>
 
           {isUnconfigured && (
-            <div className="mt-4 p-3 rounded border text-xs font-mono"
-                 style={{ backgroundColor: 'var(--dark-elevated)', borderColor: 'var(--dark-border2)', color: 'var(--text-muted)' }}>
-              <p className="font-bold text-yellow-400 mb-2">Setup Required</p>
-              <p>To enable QBO integration, add the following to your <span className="text-white">.env.local</span> and <span className="text-white">Qrew/functions/.env</span>:</p>
+            <div className="mt-4 p-4 rounded-2xl border text-xs font-mono bg-yellow-50 border-yellow-200 text-yellow-800">
+              <p className="font-bold mb-2">Setup Required</p>
+              <p>To enable QBO integration, add the following to your <span className="font-semibold text-yellow-900">.env.local</span> and <span className="font-semibold text-yellow-900">Qrew/functions/.env</span>:</p>
               <ul className="mt-2 space-y-0.5 list-disc list-inside">
                 <li>QBO_CLIENT_ID</li>
                 <li>QBO_CLIENT_SECRET</li>
@@ -229,7 +228,7 @@ export default function QboPage() {
                 <li>QBO_OAUTH_STATE_SECRET</li>
                 <li>QBO_ORG_ID</li>
               </ul>
-              <p className="mt-2">See <span className="text-white">.env.example</span> for full documentation.</p>
+              <p className="mt-2">See <span className="font-semibold text-yellow-900">.env.example</span> for full documentation.</p>
             </div>
           )}
         </div>
@@ -237,7 +236,7 @@ export default function QboPage() {
         {/* ── Sync controls ─────────────────────────────────────────────── */}
         <div className="card mb-6">
           <p className="field-label mb-3">Sync from QuickBooks</p>
-          <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-xs mb-4 text-gray-500">
             Pull employees, customers (job sites), and classes from QBO into Qrew for mapping.
           </p>
           <div className="grid grid-cols-3 gap-3">
@@ -260,7 +259,7 @@ export default function QboPage() {
         {/* ── Time activity push ────────────────────────────────────────── */}
         <div className="card mb-6">
           <p className="field-label mb-3">Push Time Activities</p>
-          <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-xs mb-4 text-gray-500">
             Approved shifts with complete employee and customer mappings are pushed to QBO as TimeActivity records.
           </p>
           <div className="flex gap-3">
@@ -285,9 +284,8 @@ export default function QboPage() {
         </div>
 
         {/* ── Info note ─────────────────────────────────────────────────── */}
-        <div className="p-3 rounded border text-xs"
-             style={{ backgroundColor: 'var(--dark-elevated)', borderColor: 'var(--dark-border2)', color: 'var(--text-muted)' }}>
-          <p className="font-bold text-white mb-1">How QBO sync works</p>
+        <div className="p-4 rounded-2xl border text-xs bg-gray-50 border-gray-200 text-gray-600">
+          <p className="font-semibold text-gray-900 mb-2">How QBO sync works</p>
           <ol className="space-y-1 list-decimal list-inside">
             <li>Connect this app to your QBO company via OAuth above.</li>
             <li>Sync employees, customers, and classes from QBO.</li>
@@ -300,18 +298,18 @@ export default function QboPage() {
       </main>
 
       {/* Bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-dark-base border-t border-dark-border z-20 grid grid-cols-4">
-        <button onClick={() => router.push('/dashboard')} className="flex flex-col items-center justify-center gap-1 py-3 border-r border-dark-border text-gray-700 hover:text-gray-400 transition-colors">
-          <Clock className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Home</span>
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-20 grid grid-cols-4">
+        <button onClick={() => router.push('/dashboard')} className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: '#9ca3af' }}>
+          <Clock className="w-5 h-5" /><span className="text-[10px] font-medium">Home</span>
         </button>
-        <button onClick={() => router.push('/worksites')} className="flex flex-col items-center justify-center gap-1 py-3 border-r border-dark-border text-gray-700 hover:text-gray-400 transition-colors">
-          <Building2 className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Sites</span>
+        <button onClick={() => router.push('/worksites')} className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: '#9ca3af' }}>
+          <Building2 className="w-5 h-5" /><span className="text-[10px] font-medium">Sites</span>
         </button>
-        <button onClick={() => router.push('/reports')} className="flex flex-col items-center justify-center gap-1 py-3 border-r border-dark-border text-gray-700 hover:text-gray-400 transition-colors">
-          <FileText className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Reports</span>
+        <button onClick={() => router.push('/reports')} className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: '#9ca3af' }}>
+          <FileText className="w-5 h-5" /><span className="text-[10px] font-medium">Reports</span>
         </button>
-        <button className="flex flex-col items-center justify-center gap-1 py-3" style={{ color: 'var(--accent-300)' }}>
-          <Users className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Admin</span>
+        <button className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: 'var(--accent)' }}>
+          <Users className="w-5 h-5" /><span className="text-[10px] font-medium">Admin</span>
         </button>
       </nav>
 

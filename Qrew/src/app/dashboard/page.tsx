@@ -12,7 +12,7 @@ import {
   getSiteDayByWorksiteAndDate, createAuditLog,
 } from '@/lib/db';
 import type { SiteDay, Worksite } from '@/types';
-import { getLocalDateString, forceCloseOpenShifts } from '@/lib/utils';
+import { getLocalDateString, forceCloseOpenShifts, getBrowserPosition, haversineDistanceMeters } from '@/lib/utils';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -123,6 +123,24 @@ export default function DashboardPage() {
     try {
       const siteId = selectedSiteId || (myWorksites[0]?.id ?? '');
       if (!siteId) throw new Error('No worksite selected');
+
+      // Geo-verification: clock-in requires the worker to be within 100 ft of the worksite.
+      let punchPos: { lat: number; lng: number } | null = null;
+      if (type === 'IN') {
+        const worksite = myWorksites.find(w => w.id === siteId);
+        if (worksite?.lat && worksite?.lng) {
+          punchPos = await getBrowserPosition();
+          if (!punchPos) {
+            throw new Error('Location access is required to clock in. Please enable location permissions in your browser and try again.');
+          }
+          const distMeters = haversineDistanceMeters(punchPos.lat, punchPos.lng, worksite.lat, worksite.lng);
+          const distFeet = Math.round(distMeters * 3.28084);
+          if (distMeters > 30.48) {
+            throw new Error(`You must be within 100 ft of the worksite to clock in. You appear to be ~${distFeet} ft away.`);
+          }
+        }
+      }
+
       const today = getLocalDateString(new Date());
       const existing = await getSiteDayByWorksiteAndDate(siteId, today);
 
@@ -146,6 +164,7 @@ export default function DashboardPage() {
         type,
         timestamp: new Date(),
         source: 'web',
+        ...(punchPos ? { lat: punchPos.lat, lng: punchPos.lng } : {}),
       });
 
       if (type === 'IN') {
@@ -257,18 +276,14 @@ export default function DashboardPage() {
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-gray-100">
-        <div className="flex items-center gap-2.5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/hoi-logo.png" alt="HOI" className="h-8 w-auto object-contain" />
-          <div>
-            <p className="text-[9px] text-gray-400 font-mono tracking-widest uppercase leading-none">
-              Elder Systems
-            </p>
-            <p className="text-[11px] font-bold font-mono tracking-wide uppercase leading-none mt-0.5"
-               style={{ color: 'var(--accent)' }}>
-              Housing Workforce
-            </p>
-          </div>
+        <div>
+          <p className="text-[8px] text-gray-400 font-mono tracking-[0.4em] uppercase leading-none">
+            Elder Systems
+          </p>
+          <p className="text-[11px] font-bold font-mono tracking-[0.25em] uppercase leading-none mt-0.5"
+             style={{ color: 'var(--accent)' }}>
+            Housing Workforce
+          </p>
         </div>
         <button
           onClick={signOut}
@@ -296,9 +311,9 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            {/* Live clock card */}
+            {/* Live clock card — intentionally dark for contrast */}
             <div className="rounded-3xl px-6 py-7 flex flex-col items-center gap-1"
-                 style={{ backgroundColor: '#12122a' }}>
+                 style={{ backgroundColor: '#0a1a0a' }}>
               <p
                 className="font-mono font-bold leading-none tabular-nums"
                 style={{ fontSize: 'clamp(2.5rem, 12vw, 4rem)', color: '#ffffff' }}
@@ -309,19 +324,22 @@ export default function DashboardPage() {
                 <span style={{ color: 'var(--accent)' }} className="animate-pulse">:</span>
                 {padTwo(now.getSeconds())}
               </p>
-              <p className="text-xs text-gray-400 font-mono tracking-widest uppercase mt-1">
+              <p className="text-xs font-mono tracking-widest uppercase mt-1"
+                 style={{ color: 'var(--accent)' }}>
                 {now.getHours() < 12 ? 'AM' : 'PM'}
               </p>
             </div>
 
             {/* Status pill */}
             {clockedIn && clockInTime ? (
-              <div className="flex items-center justify-between rounded-2xl px-5 py-4 bg-green-50 border border-green-200">
+              <div className="flex items-center justify-between rounded-2xl px-5 py-4 border"
+                   style={{ backgroundColor: 'var(--accent-900)', borderColor: 'var(--accent-800)' }}>
                 <div className="flex items-center gap-2.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-sm font-medium text-green-800">Clocked in</span>
+                  <div className="w-2.5 h-2.5 rounded-full animate-pulse"
+                       style={{ backgroundColor: 'var(--accent)' }} />
+                  <span className="text-sm font-medium" style={{ color: 'var(--accent)' }}>Clocked in</span>
                 </div>
-                <span className="text-sm font-semibold text-green-700 font-mono">
+                <span className="text-sm font-semibold font-mono" style={{ color: 'var(--accent)' }}>
                   {formatElapsed(clockInTime, now)}
                 </span>
               </div>
@@ -341,8 +359,9 @@ export default function DashboardPage() {
                 <select
                   value={selectedSiteId}
                   onChange={e => setSelectedSiteId(e.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 px-4 py-3.5 text-sm
-                             text-gray-900 bg-white focus:outline-none focus:border-blue-400"
+                  className="w-full rounded-2xl border px-4 py-3.5 text-sm
+                             text-gray-900 bg-white focus:outline-none"
+                  style={{ borderColor: 'var(--dark-border2)' }}
                 >
                   <option value="">Select a site…</option>
                   {myWorksites.map(w => (
@@ -411,8 +430,10 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={ws.id}
-                    className={`rounded-2xl border px-5 py-4 flex items-center justify-between
-                                ${openDay ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}
+                    className="rounded-2xl border px-5 py-4 flex items-center justify-between"
+                    style={openDay
+                      ? { backgroundColor: 'var(--accent-900)', borderColor: 'var(--accent-800)' }
+                      : { backgroundColor: '#ffffff', borderColor: 'var(--dark-border)' }}
                   >
                     <div>
                       <p className="text-sm font-semibold text-gray-900">{ws.name}</p>
@@ -420,8 +441,10 @@ export default function DashboardPage() {
                         <p className="text-xs text-gray-400 mt-0.5">{ws.address}</p>
                       )}
                       {openDay && (
-                        <span className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-green-700">
-                          <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                        <span className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium"
+                              style={{ color: 'var(--accent)' }}>
+                          <div className="w-1.5 h-1.5 rounded-full"
+                               style={{ backgroundColor: 'var(--accent)' }} />
                           Open today
                         </span>
                       )}

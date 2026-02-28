@@ -78,9 +78,9 @@ export default function StaffPage() {
   };
 
   const tierBadge: Record<WorkerTier, string> = {
-    TECH:  'text-blue-400 border-blue-800 bg-blue-950',
-    COORD: 'text-purple-400 border-purple-800 bg-purple-950',
-    TO:    'text-gray-400 border-dark-border2',
+    TECH:  'text-blue-700 border-blue-200 bg-blue-50',
+    COORD: 'text-purple-700 border-purple-200 bg-purple-50',
+    TO:    'text-gray-600 border-gray-200 bg-gray-100',
   };
 
   if (loading || !user) {
@@ -95,32 +95,32 @@ export default function StaffPage() {
   const inactive = workers.filter(w => !w.active);
 
   return (
-    <div className="min-h-screen bg-dark-base text-white">
+    <div className="min-h-screen bg-white">
 
       {/* Header */}
-      <header className="border-b border-dark-border px-4 py-3 flex items-center justify-between sticky top-0 bg-dark-base z-20">
+      <header className="border-b border-gray-100 px-4 py-3 flex items-center justify-between sticky top-0 bg-white z-20">
         <div>
-          <p className="text-[9px] text-gray-600 tracking-[0.4em] uppercase font-mono">Elder Systems</p>
-          <p className="text-[11px] font-bold text-white tracking-[0.2em] uppercase font-mono">Housing Workforce</p>
+          <p className="text-[8px] text-gray-400 tracking-[0.4em] uppercase font-mono">Elder Systems</p>
+          <p className="text-[11px] font-bold tracking-[0.25em] uppercase font-mono"
+             style={{ color: 'var(--accent)' }}>Housing Workforce</p>
         </div>
         <button
           onClick={signOut}
-          className="flex items-center gap-2 text-[9px] tracking-[0.2em] uppercase text-gray-500
-                     font-mono border border-dark-border2 px-3 py-1.5
-                     hover:border-gray-500 hover:text-gray-300 transition-colors"
+          className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
+          title="Sign out"
         >
-          <LogOut className="w-3 h-3" />Sign Out
+          <LogOut className="w-5 h-5" />
         </button>
       </header>
 
-      <main className="px-4 sm:px-6 py-6 pb-20">
+      <main className="px-4 sm:px-6 py-6 pb-24">
 
         {/* Title row */}
-        <div className="border-b border-dark-border pb-4 mb-6 flex items-end justify-between">
+        <div className="border-b border-gray-100 pb-4 mb-6 flex items-end justify-between">
           <div>
             <p className="field-label">Personnel</p>
-            <h2 className="text-lg font-bold text-white tracking-wide mt-1">STAFF DIRECTORY</h2>
-            <p className="text-xs font-mono mt-1" style={{ color: 'var(--text-muted)' }}>
+            <h2 className="text-lg font-bold text-gray-900 tracking-wide mt-1">STAFF DIRECTORY</h2>
+            <p className="text-xs font-mono mt-1 text-gray-500">
               Worker accounts — TO, TECH, COORD
             </p>
           </div>
@@ -134,15 +134,15 @@ export default function StaffPage() {
 
         {/* Alerts */}
         {error && (
-          <div className="mb-4 p-3 bg-red-950 border border-red-800 rounded text-red-400 text-sm flex items-center gap-2">
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm flex items-center gap-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             {error}
             <button onClick={() => setError(null)} className="ml-auto">✕</button>
           </div>
         )}
         {successMsg && (
-          <div className="mb-4 p-3 rounded text-sm flex items-center gap-2 border"
-               style={{ backgroundColor: 'var(--accent-900)', borderColor: 'var(--accent-800)', color: 'var(--accent-300)' }}>
+          <div className="mb-4 p-4 rounded-2xl text-sm flex items-center gap-2 border"
+               style={{ backgroundColor: 'var(--accent-900)', borderColor: 'var(--accent-800)', color: 'var(--accent)' }}>
             <CheckCircle className="w-4 h-4 flex-shrink-0" />
             {successMsg}
           </div>
@@ -152,9 +152,9 @@ export default function StaffPage() {
           <div className="flex justify-center py-12"><div className="spinner" /></div>
         ) : workers.length === 0 ? (
           <div className="card text-center py-12">
-            <Users className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
-            <p className="font-medium text-white">No workers yet</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+            <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <p className="font-medium text-gray-900">No workers yet</p>
+            <p className="text-xs mt-1 text-gray-500">
               Staff appear here after signing in for the first time.
             </p>
           </div>
@@ -170,14 +170,14 @@ export default function StaffPage() {
                     <div key={w.id} className="card p-4 flex items-center justify-between gap-4">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium text-white text-sm">{w.displayName}</p>
+                          <p className="font-medium text-gray-900 text-sm">{w.displayName}</p>
                           {w.workerTier && (
                             <span className={`badge text-[10px] border ${tierBadge[w.workerTier]}`}>
                               {getWorkerTierLabel(w.workerTier)}
                             </span>
                           )}
                         </div>
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{w.email}</p>
+                        <p className="text-xs mt-0.5 text-gray-500">{w.email}</p>
                       </div>
                       <button
                         onClick={() => handleToggleActive(w)}
@@ -201,7 +201,7 @@ export default function StaffPage() {
                     <div key={w.id} className="card p-4 flex items-center justify-between gap-4 opacity-50">
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-white text-sm">{w.displayName}</p>
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{w.email}</p>
+                        <p className="text-xs mt-0.5 text-gray-500">{w.email}</p>
                       </div>
                       <button
                         onClick={() => handleToggleActive(w)}
@@ -221,18 +221,18 @@ export default function StaffPage() {
       </main>
 
       {/* Bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-dark-base border-t border-dark-border z-20 grid grid-cols-4">
-        <button onClick={() => router.push('/dashboard')} className="flex flex-col items-center justify-center gap-1 py-3 border-r border-dark-border text-gray-700 hover:text-gray-400 transition-colors">
-          <Clock className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Home</span>
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-20 grid grid-cols-4">
+        <button onClick={() => router.push('/dashboard')} className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: '#9ca3af' }}>
+          <Clock className="w-5 h-5" /><span className="text-[10px] font-medium">Home</span>
         </button>
-        <button onClick={() => router.push('/worksites')} className="flex flex-col items-center justify-center gap-1 py-3 border-r border-dark-border text-gray-700 hover:text-gray-400 transition-colors">
-          <Building2 className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Sites</span>
+        <button onClick={() => router.push('/worksites')} className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: '#9ca3af' }}>
+          <Building2 className="w-5 h-5" /><span className="text-[10px] font-medium">Sites</span>
         </button>
-        <button onClick={() => router.push('/reports')} className="flex flex-col items-center justify-center gap-1 py-3 border-r border-dark-border text-gray-700 hover:text-gray-400 transition-colors">
-          <FileText className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Reports</span>
+        <button onClick={() => router.push('/reports')} className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: '#9ca3af' }}>
+          <FileText className="w-5 h-5" /><span className="text-[10px] font-medium">Reports</span>
         </button>
-        <button className="flex flex-col items-center justify-center gap-1 py-3" style={{ color: 'var(--accent-300)' }}>
-          <Users className="w-4 h-4" /><span className="text-[8px] tracking-[0.15em] uppercase font-mono">Staff</span>
+        <button className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: 'var(--accent)' }}>
+          <Users className="w-5 h-5" /><span className="text-[10px] font-medium">Staff</span>
         </button>
       </nav>
 

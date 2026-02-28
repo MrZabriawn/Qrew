@@ -227,3 +227,57 @@ export const forceCloseOpenShifts = (
 export const cn = (...classes: (string | boolean | undefined | null)[]): string => {
   return classes.filter(Boolean).join(' ');
 };
+
+// ===== GEO UTILITIES =====
+
+// Haversine formula — calculates the great-circle distance between two lat/lng points.
+// Returns distance in meters. Used to verify workers are on-site when clocking in.
+export const haversineDistanceMeters = (
+  lat1: number, lng1: number,
+  lat2: number, lng2: number
+): number => {
+  const R = 6371000; // Earth radius in meters
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+// Geocodes a street address using OpenStreetMap Nominatim (free, no API key required).
+// Returns { lat, lng } on success, or null if the address couldn't be resolved.
+// Must be called from a browser context (uses fetch with a User-Agent header).
+export const geocodeAddress = async (
+  address: string
+): Promise<{ lat: number; lng: number } | null> => {
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Qrew Housing Workforce (housingopps.org)' },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return null;
+    return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  } catch {
+    return null;
+  }
+};
+
+// Wraps the browser Geolocation API in a Promise.
+// Returns { lat, lng } on success, or null if permission is denied or unavailable.
+export const getBrowserPosition = (): Promise<{ lat: number; lng: number } | null> => {
+  return new Promise((resolve) => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { timeout: 10000, maximumAge: 0 }
+    );
+  });
+};
