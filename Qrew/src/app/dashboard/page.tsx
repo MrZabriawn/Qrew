@@ -56,6 +56,10 @@ export default function DashboardPage() {
   const [selectedSiteId, setSelectedSiteId] = useState<string>('');
   const [dataLoaded,     setDataLoaded]      = useState(false);
 
+  // early departure modal
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leaveReason,    setLeaveReason]    = useState('');
+
   // ── tick ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     setMounted(true);
@@ -116,7 +120,7 @@ export default function DashboardPage() {
   }, [myWorksites, selectedSiteId]);
 
   // ── punch ─────────────────────────────────────────────────────────────────
-  const handlePunch = useCallback(async (type: 'IN' | 'OUT') => {
+  const handlePunch = useCallback(async (type: 'IN' | 'OUT', reason?: string) => {
     if (!user || busy) return;
     setActionError(null);
     setBusy(true);
@@ -144,19 +148,15 @@ export default function DashboardPage() {
       const today = getLocalDateString(new Date());
       const existing = await getSiteDayByWorksiteAndDate(siteId, today);
 
-      let siteDayId: string;
-      if (!existing) {
-        if (type === 'OUT') throw new Error('No open shift to clock out from');
-        siteDayId = await createSiteDay({
-          worksiteId: siteId,
-          date: today,
-          status: 'OPEN',
-          startedAt: new Date(),
-          startedBy: user.id,
-        });
-      } else {
-        siteDayId = existing.id;
+      // Supervisors must start the day before anyone can clock in or leave early.
+      if (!existing || existing.status !== 'OPEN') {
+        throw new Error(
+          type === 'IN'
+            ? 'The workday has not been started yet. Please wait for your supervisor.'
+            : 'No open workday found.'
+        );
       }
+      const siteDayId = existing.id;
 
       await createPunch({
         userId: user.id,
@@ -165,20 +165,13 @@ export default function DashboardPage() {
         timestamp: new Date(),
         source: 'web',
         ...(punchPos ? { lat: punchPos.lat, lng: punchPos.lng } : {}),
+        ...(reason   ? { reason }                                  : {}),
       });
 
       if (type === 'IN') {
         setClockInTime(new Date());
       } else {
         setClockInTime(null);
-        const punches = await getPunchesBySiteDay(siteDayId);
-        const { shifts, closingPunches } = forceCloseOpenShifts(punches, new Date());
-        for (const s of shifts) {
-          await createShift({ ...s, siteDayId, userId: user.id });
-        }
-        for (const p of closingPunches) {
-          await createPunch(p);
-        }
       }
 
       await createAuditLog({
@@ -194,6 +187,20 @@ export default function DashboardPage() {
       setBusy(false);
     }
   }, [user, busy, selectedSiteId, myWorksites, loadData]);
+
+  // ── leave early — show reason modal, then submit OUT punch ────────────────
+  const handleLeaveEarly = useCallback(async () => {
+    const siteId  = selectedSiteId || (myWorksites[0]?.id ?? '');
+    if (!siteId) { setActionError('No worksite selected'); return; }
+    const today    = getLocalDateString(new Date());
+    const existing = await getSiteDayByWorksiteAndDate(siteId, today);
+    if (!existing || existing.status !== 'OPEN') {
+      setActionError('No open workday found.');
+      return;
+    }
+    setLeaveReason('');
+    setShowLeaveModal(true);
+  }, [selectedSiteId, myWorksites]);
 
   // ── site day controls ─────────────────────────────────────────────────────
   const handleStartDay = useCallback(async (worksiteId: string) => {
@@ -230,7 +237,20 @@ export default function DashboardPage() {
     setBusy(true);
     setActionError(null);
     try {
-      await updateSiteDay(siteDayId, { status: 'CLOSED', endedAt: new Date(), endedBy: user.id });
+      const endTime = new Date();
+
+      // Write all shifts to Firestore BEFORE closing the SiteDay so that the
+      // onSiteDayEnded Cloud Function can read them when building the calendar summary.
+      const punches = await getPunchesBySiteDay(siteDayId);
+      const { shifts, closingPunches } = forceCloseOpenShifts(punches, endTime);
+      for (const s of shifts) {
+        await createShift(s);
+      }
+      for (const p of closingPunches) {
+        await createPunch(p);
+      }
+
+      await updateSiteDay(siteDayId, { status: 'CLOSED', endedAt: endTime, endedBy: user.id });
       await createAuditLog({
         actorUserId: user.id,
         actionType: 'SITEDAY_ENDED',
@@ -277,11 +297,11 @@ export default function DashboardPage() {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-gray-100">
         <div>
-          <p className="text-[8px] text-gray-400 font-mono tracking-[0.4em] uppercase leading-none">
-            Elder Systems
-          </p>
-          <p className="text-[11px] font-bold font-mono tracking-[0.25em] uppercase leading-none mt-0.5"
+          <p className="text-[11px] font-bold font-mono tracking-[0.25em] uppercase leading-none"
              style={{ color: 'var(--accent)' }}>
+            Qrew
+          </p>
+          <p className="text-[8px] text-gray-400 font-mono tracking-[0.4em] uppercase leading-none mt-0.5">
             Housing Workforce
           </p>
         </div>
@@ -390,7 +410,7 @@ export default function DashboardPage() {
                   </button>
                 ) : (
                   <button
-                    onClick={() => handlePunch('OUT')}
+                    onClick={handleLeaveEarly}
                     disabled={busy}
                     className="w-full py-5 rounded-2xl text-gray-900 text-base font-semibold
                                border-2 border-gray-900 hover:bg-gray-900 hover:text-white
@@ -399,9 +419,9 @@ export default function DashboardPage() {
                     {busy ? (
                       <span className="flex items-center justify-center gap-2">
                         <div className="w-5 h-5 border-2 border-gray-400 border-t-gray-900 rounded-full animate-spin" />
-                        Clocking out…
+                        Submitting…
                       </span>
-                    ) : 'Clock Out'}
+                    ) : 'Leave Early'}
                   </button>
                 )}
             </div>
@@ -524,6 +544,60 @@ export default function DashboardPage() {
         )}
 
       </main>
+
+      {/* ── Early Departure Modal ───────────────────────────────────────── */}
+      {showLeaveModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center"
+             style={{ background: 'rgba(0,0,0,0.4)' }}>
+          <div className="w-full max-w-md bg-white rounded-t-3xl px-6 pt-6 pb-10 shadow-2xl">
+            <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto mb-5" />
+            <h3 className="text-base font-bold text-gray-900 mb-1">Leave Early</h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Enter the reason you are leaving before end of day.
+            </p>
+
+            {clockInTime && (
+              <p className="text-xs font-mono mb-4" style={{ color: 'var(--accent)' }}>
+                Time on site: {formatElapsed(clockInTime, now)}
+              </p>
+            )}
+
+            <textarea
+              className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm
+                         text-gray-900 resize-none focus:outline-none focus:ring-2"
+              style={{ '--tw-ring-color': 'var(--accent)' } as React.CSSProperties}
+              rows={3}
+              placeholder="e.g. Doctor appointment, family emergency…"
+              value={leaveReason}
+              onChange={e => setLeaveReason(e.target.value)}
+              autoFocus
+            />
+
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => setShowLeaveModal(false)}
+                className="flex-1 py-3.5 rounded-2xl border border-gray-300 text-sm
+                           font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!leaveReason.trim()) return;
+                  setShowLeaveModal(false);
+                  await handlePunch('OUT', leaveReason.trim());
+                }}
+                disabled={!leaveReason.trim()}
+                className="flex-1 py-3.5 rounded-2xl text-sm font-semibold text-white
+                           transition-all disabled:opacity-40"
+                style={{ backgroundColor: 'var(--accent)' }}
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Bottom Nav ─────────────────────────────────────────────────── */}
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md

@@ -297,9 +297,8 @@ export default function WorksitesPage() {
       {/* Header */}
       <header className="border-b border-gray-100 px-4 py-3 flex items-center justify-between sticky top-0 bg-white z-20">
         <div>
-          <p className="text-[8px] text-gray-400 tracking-[0.4em] uppercase font-mono">Elder Systems</p>
-          <p className="text-[11px] font-bold tracking-[0.25em] uppercase font-mono"
-             style={{ color: 'var(--accent)' }}>Housing Workforce</p>
+          <p className="text-[11px] font-bold tracking-[0.25em] uppercase font-mono" style={{ color: 'var(--accent)' }}>Qrew</p>
+          <p className="text-[8px] text-gray-400 tracking-[0.4em] uppercase font-mono">Housing Workforce</p>
         </div>
         <button
           onClick={signOut}

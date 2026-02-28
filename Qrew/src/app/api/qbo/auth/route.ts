@@ -67,6 +67,14 @@ export async function GET(req: NextRequest) {
     });
 
     const authUrl = `${INTUIT_AUTH_BASE}?${params.toString()}`;
+
+    // When the caller sends X-Return-Url: 1 (e.g., client-side fetch with auth header),
+    // return the URL as JSON instead of redirecting — the browser can't send custom headers
+    // during a navigation, so the client fetches the URL first, then navigates to it.
+    if (req.headers.get('x-return-url') === '1') {
+      return NextResponse.json({ url: authUrl });
+    }
+
     return NextResponse.redirect(authUrl);
 
   } catch (err: unknown) {

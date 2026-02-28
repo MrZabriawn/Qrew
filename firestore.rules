@@ -82,6 +82,17 @@ service cloud.firestore {
       match /qboClassMappings/{mappingId} {
         allow read, write: if isED();
       }
+      // Caches populated by the sync/employees, sync/customers, and sync/classes API routes.
+      // Read-only access is sufficient for the client; writes go through the Admin SDK only.
+      match /qboEmployeeCache/{cacheId} {
+        allow read, write: if isED();
+      }
+      match /qboCustomerCache/{cacheId} {
+        allow read, write: if isED();
+      }
+      match /qboClassCache/{cacheId} {
+        allow read, write: if isED();
+      }
     }
 
     // Worksites collection (/worksites/{worksiteId})

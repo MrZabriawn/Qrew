@@ -62,16 +62,12 @@ interface Worksite {
   address: string;
 }
 
-interface User {
-  id: string;
-  displayName: string;
-}
-
 interface Punch {
   id: string;
   userId: string;
   type: 'IN' | 'OUT';
   timestamp: admin.firestore.Timestamp;
+  reason?: string;  // Set on early-departure OUT punches (worker left before end of day)
 }
 
 // ===== CLOUD FUNCTION: onSiteDayCreated =====
@@ -87,31 +83,24 @@ export const onSiteDayCreated = functions.firestore
     if (siteDay.status !== 'OPEN') return;
 
     try {
-      // Fetch worksite details for the Calendar event title and description
+      // Fetch worksite details for the Calendar event title
       const worksiteDoc = await admin.firestore()
         .collection('worksites')
         .doc(siteDay.worksiteId)
         .get();
       const worksite = { id: worksiteDoc.id, ...worksiteDoc.data() } as Worksite;
 
-      // Fetch the user who started the day for attribution in the Calendar description
-      const userDoc = await admin.firestore()
-        .collection('users')
-        .doc(siteDay.startedBy)
-        .get();
-      const user = { id: userDoc.id, ...userDoc.data() } as User;
-
       const calendar = getCalendarClient();
 
       const startTime = siteDay.startedAt.toDate();
       // Default event end time is 8 hours after start; this is updated when the day closes
-      const endTime = new Date(startTime.getTime() + 8 * 60 * 60 * 1000); // +8 hours
+      const endTime = new Date(startTime.getTime() + 8 * 60 * 60 * 1000);
 
       const event = {
-        // Event title: "Worksite Name — YYYY-MM-DD"
-        summary: `${worksite.name} — ${siteDay.date}`,
-        // Human-readable description with crew log; updated on each sync
-        description: formatEventDescription(worksite, siteDay, user, [], 'OPEN'),
+        // Event title: "Worksite Name – Work Day"
+        summary: `${worksite.name} \u2013 Work Day`,
+        // Description starts empty — batchSyncCalendarEvents fills it in as workers clock in
+        description: await formatEventDescription([]),
         start: {
           dateTime: startTime.toISOString(),
           timeZone: 'America/New_York',
@@ -176,19 +165,6 @@ export const batchSyncCalendarEvents = functions.pubsub
       if (!siteDay.calendarEventId) continue;
 
       try {
-        // Fetch worksite and user details for the event description
-        const worksiteDoc = await admin.firestore()
-          .collection('worksites')
-          .doc(siteDay.worksiteId)
-          .get();
-        const worksite = { id: worksiteDoc.id, ...worksiteDoc.data() } as Worksite;
-
-        const userDoc = await admin.firestore()
-          .collection('users')
-          .doc(siteDay.startedBy)
-          .get();
-        const user = { id: userDoc.id, ...userDoc.data() } as User;
-
         // Get all punches for this siteDay to rebuild the crew log
         const punchesSnapshot = await admin.firestore()
           .collection('punches')
@@ -206,7 +182,7 @@ export const batchSyncCalendarEvents = functions.pubsub
           calendarId: CALENDAR_ID,
           eventId: siteDay.calendarEventId,
           requestBody: {
-            description: formatEventDescription(worksite, siteDay, user, punches, 'OPEN'),
+            description: await formatEventDescription(punches),
           },
         });
 
@@ -229,7 +205,7 @@ export const batchSyncCalendarEvents = functions.pubsub
 // Triggered whenever a `siteDays` document is updated.
 // Detects the OPEN → CLOSED status transition and updates the Calendar event with:
 //   - The actual end time (replacing the 8-hour default)
-//   - A final summary showing each worker's total hours and first-in/last-out times
+//   - A final summary showing Crew Clock-Ins, Early Departures, and End-of-Day totals
 export const onSiteDayEnded = functions.firestore
   .document('siteDays/{siteDayId}')
   .onUpdate(async (change, context) => {
@@ -239,19 +215,6 @@ export const onSiteDayEnded = functions.firestore
     // Only act on the specific OPEN → CLOSED transition; ignore other field updates
     if (before.status === 'OPEN' && after.status === 'CLOSED' && after.calendarEventId) {
       try {
-        // Fetch worksite details for the final event description
-        const worksiteDoc = await admin.firestore()
-          .collection('worksites')
-          .doc(after.worksiteId)
-          .get();
-        const worksite = { id: worksiteDoc.id, ...worksiteDoc.data() } as Worksite;
-
-        const startUserDoc = await admin.firestore()
-          .collection('users')
-          .doc(after.startedBy)
-          .get();
-        const startUser = { id: startUserDoc.id, ...startUserDoc.data() } as User;
-
         // Fetch all punches for the final crew log
         const punchesSnapshot = await admin.firestore()
           .collection('punches')
@@ -264,7 +227,7 @@ export const onSiteDayEnded = functions.firestore
           ...doc.data()
         })) as Punch[];
 
-        // Fetch finalized shift records (written when forceCloseOpenShifts ran at day-end)
+        // Fetch finalized shift records (written by handleEndDay before setting status CLOSED)
         const shiftsSnapshot = await admin.firestore()
           .collection('shifts')
           .where('siteDayId', '==', after.id)
@@ -288,11 +251,10 @@ export const onSiteDayEnded = functions.firestore
               timeZone: 'America/New_York',
             },
             description: await formatFinalEventDescription(
-              worksite,
-              after,
-              startUser,
               punches,
-              shifts
+              shifts,
+              after.endedAt!,
+              after.endedBy!,
             ),
           },
         });
@@ -304,134 +266,151 @@ export const onSiteDayEnded = functions.firestore
     }
   });
 
-// ===== HELPER: formatEventDescription =====
-// Builds the Calendar event description text for an OPEN SiteDay.
-// Shows header metadata and a running crew log of all IN/OUT punches so far.
-// Note: punch user IDs are not yet resolved to names in the live (OPEN) log — that happens
-// in formatFinalEventDescription when the day closes and we can afford extra Firestore reads.
-function formatEventDescription(
-  worksite: Worksite,
-  siteDay: SiteDay,
-  startUser: User,
-  punches: Punch[],
-  status: 'OPEN' | 'CLOSED'
-): string {
-  let description = `HOI TIME CLOCK\n`;
-  description += `Worksite: ${worksite.name}\n`;
-  description += `Address: ${worksite.address}\n`;
-  description += `Started By: ${startUser.displayName}\n`;
-  description += `Start: ${siteDay.startedAt.toDate().toLocaleString()}\n`;
-  description += `Status: ${status}\n\n`;
+// ===== HELPER: resolveUserNames =====
+// Batch-fetches display names for a list of user IDs from Firestore in parallel.
+// De-duplicates IDs before fetching to avoid redundant reads.
+async function resolveUserNames(userIds: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(userIds)];
+  const map = new Map<string, string>();
+  await Promise.all(
+    unique.map(async (id) => {
+      const doc = await admin.firestore().collection('users').doc(id).get();
+      map.set(id, doc.exists ? (doc.data()?.displayName ?? id) : id);
+    })
+  );
+  return map;
+}
 
-  // Append each punch as a timestamped log line
-  if (punches.length > 0) {
-    description += `CREW LOG:\n`;
-    for (const punch of punches) {
-      const timestamp = punch.timestamp.toDate().toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-      });
-      // Use the userId as a placeholder; final descriptions resolve to display names
-      description += `${timestamp} ${punch.type} — [User ${punch.userId}]\n`;
-    }
+// ===== HELPER: formatTime =====
+// Formats a Date as "7:58 AM" style time string in Eastern Time.
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'America/New_York',
+  });
+}
+
+// ===== HELPER: formatHours =====
+// Formats a duration in minutes as a decimal hours string (e.g. 307 min → "5.1 hrs").
+function formatHours(minutes: number): string {
+  return `${(minutes / 60).toFixed(1)} hrs`;
+}
+
+// ===== HELPER: formatEventDescription =====
+// Builds the Calendar event description for an OPEN SiteDay.
+// Sections:
+//   "Crew Clock-Ins"   — one line per IN punch: "Name – 7:58 AM"
+//   "Early Departure"  — one line per OUT punch that has a reason:
+//                        "Name – 1:12 PM – Reason – 5.1 hrs"
+// Sections are omitted when empty. Name resolution is batched in a single Promise.all.
+async function formatEventDescription(punches: Punch[]): Promise<string> {
+  const names = await resolveUserNames(punches.map(p => p.userId));
+
+  const inPunches = punches.filter(p => p.type === 'IN');
+  const earlyOutPunches = punches.filter(p => p.type === 'OUT' && p.reason);
+
+  const sections: string[] = [];
+
+  if (inPunches.length > 0) {
+    const lines = inPunches.map(p =>
+      `${names.get(p.userId) ?? p.userId} \u2013 ${formatTime(p.timestamp.toDate())}`
+    );
+    sections.push(`Crew Clock-Ins\n${lines.join('\n')}`);
   }
 
-  return description;
+  if (earlyOutPunches.length > 0) {
+    const lines = earlyOutPunches.map(p => {
+      const name = names.get(p.userId) ?? p.userId;
+      const outTime = formatTime(p.timestamp.toDate());
+      // Find the most recent IN punch for this user to compute hours worked before leaving
+      const matchingIn = [...inPunches].reverse().find(ip => ip.userId === p.userId);
+      let hoursStr = '';
+      if (matchingIn) {
+        const durationMs = p.timestamp.toDate().getTime() - matchingIn.timestamp.toDate().getTime();
+        hoursStr = ` \u2013 ${formatHours(Math.round(durationMs / 60000))}`;
+      }
+      return `${name} \u2013 ${outTime} \u2013 ${p.reason}${hoursStr}`;
+    });
+    sections.push(`Early Departure\n${lines.join('\n')}`);
+  }
+
+  return sections.join('\n\n');
 }
 
 // ===== HELPER: formatFinalEventDescription =====
 // Builds the Calendar event description for a CLOSED SiteDay.
-// Performs additional Firestore reads to resolve user IDs to display names.
-// Generates an end-of-day summary table showing each worker's total hours,
-// first clock-in, and last clock-out, plus a site-wide total.
+// Includes the same Crew Clock-Ins and Early Departure sections as the live description,
+// then appends an "End of Day" section with:
+//   - Per-worker total hours (decimal, from the shifts collection)
+//   - Site-wide grand total
+//   - "Ended by [Supervisor] at [time]" attribution line
 async function formatFinalEventDescription(
-  worksite: Worksite,
-  siteDay: SiteDay,
-  startUser: User,
   punches: Punch[],
-  shifts: any[]
+  shifts: any[],
+  endedAt: admin.firestore.Timestamp,
+  endedBy: string,
 ): Promise<string> {
-  let description = `HOI TIME CLOCK\n`;
-  description += `Worksite: ${worksite.name}\n`;
-  description += `Address: ${worksite.address}\n`;
-  description += `Started By: ${startUser.displayName}\n`;
-  description += `Start: ${siteDay.startedAt.toDate().toLocaleString()}\n`;
-  description += `Status: CLOSED\n\n`;
+  // Resolve all user IDs in one batched fetch (punches + shifts + supervisor)
+  const userIds = [...punches.map(p => p.userId), ...shifts.map(s => s.userId), endedBy];
+  const names = await resolveUserNames(userIds);
 
-  // Full crew log with resolved user display names (one Firestore read per punch user)
-  if (punches.length > 0) {
-    description += `CREW LOG:\n`;
-    for (const punch of punches) {
-      const userDoc = await admin.firestore().collection('users').doc(punch.userId).get();
-      const userName = userDoc.exists ? userDoc.data()?.displayName : punch.userId;
-      const timestamp = punch.timestamp.toDate().toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-      });
-      description += `${timestamp} ${punch.type} — ${userName}\n`;
-    }
-    description += `\n`;
+  const inPunches = punches.filter(p => p.type === 'IN');
+  const earlyOutPunches = punches.filter(p => p.type === 'OUT' && p.reason);
+
+  const sections: string[] = [];
+
+  // Crew Clock-Ins (same logic as OPEN description)
+  if (inPunches.length > 0) {
+    const lines = inPunches.map(p =>
+      `${names.get(p.userId) ?? p.userId} \u2013 ${formatTime(p.timestamp.toDate())}`
+    );
+    sections.push(`Crew Clock-Ins\n${lines.join('\n')}`);
   }
 
-  description += `END-OF-DAY SUMMARY:\n`;
+  // Early Departure (same logic as OPEN description)
+  if (earlyOutPunches.length > 0) {
+    const lines = earlyOutPunches.map(p => {
+      const name = names.get(p.userId) ?? p.userId;
+      const outTime = formatTime(p.timestamp.toDate());
+      const matchingIn = [...inPunches].reverse().find(ip => ip.userId === p.userId);
+      let hoursStr = '';
+      if (matchingIn) {
+        const durationMs = p.timestamp.toDate().getTime() - matchingIn.timestamp.toDate().getTime();
+        hoursStr = ` \u2013 ${formatHours(Math.round(durationMs / 60000))}`;
+      }
+      return `${name} \u2013 ${outTime} \u2013 ${p.reason}${hoursStr}`;
+    });
+    sections.push(`Early Departure\n${lines.join('\n')}`);
+  }
 
-  // Group shifts by userId to compute per-worker totals
+  // End of Day — per-worker totals from the shifts collection
   const userShifts = new Map<string, any[]>();
   for (const shift of shifts) {
-    if (!userShifts.has(shift.userId)) {
-      userShifts.set(shift.userId, []);
-    }
+    if (!userShifts.has(shift.userId)) userShifts.set(shift.userId, []);
     userShifts.get(shift.userId)!.push(shift);
   }
 
+  const endOfDayLines: string[] = [];
   let totalMinutes = 0;
 
-  // For each worker, output: "Name — H:MM (First In: X:XX, Last Out: X:XX)"
   for (const [userId, userShiftList] of userShifts.entries()) {
-    const userDoc = await admin.firestore().collection('users').doc(userId).get();
-    const userName = userDoc.exists ? userDoc.data()?.displayName : userId;
-
-    // Sum durations across all shifts for this worker (forcedOut shifts have durationMinutes set)
-    const userTotal = userShiftList.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
+    const name = names.get(userId) ?? userId;
+    const userTotal = userShiftList.reduce(
+      (sum: number, s: any) => sum + (s.durationMinutes || 0), 0
+    );
     totalMinutes += userTotal;
-
-    const hours = Math.floor(userTotal / 60);
-    const mins = userTotal % 60;
-    const duration = `${hours}:${mins.toString().padStart(2, '0')}`;
-
-    // First shift's inAt = first clock-in of the day
-    const firstIn = userShiftList[0].inAt.toDate().toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-
-    // Last shift's outAt = last clock-out (may be undefined if forced-out shift had no outAt)
-    const lastShift = userShiftList[userShiftList.length - 1];
-    const lastOut = lastShift.outAt
-      ? lastShift.outAt.toDate().toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-        })
-      : 'N/A';
-
-    description += `${userName} — ${duration} (First In: ${firstIn}, Last Out: ${lastOut})\n`;
+    endOfDayLines.push(`${name} \u2013 ${formatHours(userTotal)}`);
   }
 
-  // Site-wide total hours across all workers
-  const totalHours = Math.floor(totalMinutes / 60);
-  const totalMins = totalMinutes % 60;
-  const siteTotal = `${totalHours}:${totalMins.toString().padStart(2, '0')}`;
+  endOfDayLines.push(`Total \u2013 ${formatHours(totalMinutes)}`);
+  endOfDayLines.push(
+    `Ended by ${names.get(endedBy) ?? endedBy} at ${formatTime(endedAt.toDate())}`
+  );
 
-  description += `\nSITE TOTAL: ${siteTotal}\n`;
+  sections.push(`End of Day\n${endOfDayLines.join('\n')}`);
 
-  // Closing attribution line
-  if (siteDay.endedAt && siteDay.endedBy) {
-    const endUserDoc = await admin.firestore().collection('users').doc(siteDay.endedBy).get();
-    const endUserName = endUserDoc.exists ? endUserDoc.data()?.displayName : siteDay.endedBy;
-    description += `End: ${siteDay.endedAt.toDate().toLocaleString()} (Closed By: ${endUserName})\n`;
-  }
-
-  return description;
+  return sections.join('\n\n');
 }
 
 // ===== CLOUD FUNCTION: syncCalendarEvent =====
@@ -464,7 +443,6 @@ export const syncCalendarEvent = functions.https.onCall(async (data, context) =>
     throw new functions.https.HttpsError('failed-precondition', 'No calendar event linked');
   }
 
-  // Perform sync...
   // TODO: implement full sync logic (currently returns a stub response)
   return { success: true, message: 'Calendar event synced' };
 });

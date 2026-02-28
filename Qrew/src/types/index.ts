@@ -82,6 +82,7 @@ export interface Punch {
   source: PunchSource;
   lat?: number;       // Worker's GPS latitude at time of punch (captured during geo-verification)
   lng?: number;       // Worker's GPS longitude at time of punch
+  reason?: string;    // Early-departure reason (only on OUT punches where worker left before end of day)
   createdAt: Date;
 }
 

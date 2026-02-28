@@ -14,9 +14,10 @@ Mobile-first workforce time-clock application. Workers clock in and out at manag
 5. [Step 3 — Firestore Security Rules](#step-3--firestore-security-rules)
 6. [Step 4 — Build and Deploy](#step-4--build-and-deploy)
 7. [Step 5 — First-Time Firestore Bootstrap](#step-5--first-time-firestore-bootstrap)
-8. [Real-Life Testing Checklist](#real-life-testing-checklist)
-9. [Daily Operations Guide](#daily-operations-guide)
-10. [Common Errors and Fixes](#common-errors-and-fixes)
+8. [QuickBooks Online Integration](#quickbooks-online-integration)
+9. [Real-Life Testing Checklist](#real-life-testing-checklist)
+10. [Daily Operations Guide](#daily-operations-guide)
+11. [Common Errors and Fixes](#common-errors-and-fixes)
 
 ---
 
@@ -220,6 +221,104 @@ Go to your deployed app URL and sign in with the ED's Google account (`director@
 2. Go to **Admin** tab
 3. Add each staff member by their `@housingopps.org` email and assign a role (PD, TECH, COORD, or TO)
 4. They sign in using their Google Work account — the app recognizes them automatically
+
+---
+
+## QuickBooks Online Integration
+
+Qrew can push approved shift data to QBO as **TimeActivity** records, feeding directly into your QuickBooks payroll workflow. The integration is optional — the rest of the app works without it.
+
+### How the QBO Flow Works
+
+```
+Connect QBO → Sync rosters → Map workers & sites → Approve shifts → Push to QBO
+```
+
+1. **Connect** — ED opens Admin → QuickBooks and authenticates via Intuit OAuth 2.0.
+2. **Sync** — Pull the current Employee, Customer (job), and Class lists from QBO into Qrew's cache.
+3. **Map** — In the Mappings tab, link each Qrew worker to a QBO Employee/Vendor and each worksite to a QBO Customer (job).
+4. **Approve** — ED opens Reports → Payroll, selects the pay period, and approves completed shifts.
+5. **Push** — Click "Push to QBO" on each approved shift. It becomes a TimeActivity in QBO.
+6. **Retry** — If any pushes fail (rate limit, mapping gap), use Retry Failed in Admin → QBO.
+
+### Setup (New Deployment)
+
+#### 1. Intuit Developer App
+
+1. Sign in at [developer.intuit.com](https://developer.intuit.com)
+2. Create an app → select **Accounting** scope
+3. Copy **Client ID** and **Client Secret** from Keys & Credentials
+4. Add your Redirect URI:
+   - Production: `https://your-domain.web.app/api/qbo/callback`
+   - Local dev: `http://localhost:3000/api/qbo/callback`
+
+#### 2. Environment Variables
+
+Add these to `Qrew/.env.local`:
+
+```env
+# Intuit Developer credentials
+QBO_CLIENT_ID=ABcde1234...
+QBO_CLIENT_SECRET=xyz...
+
+# Must match exactly what is registered in the Intuit Developer Portal
+QBO_REDIRECT_URI=https://your-domain.web.app/api/qbo/callback
+
+# 'sandbox' for testing, 'production' for real payroll
+QBO_ENVIRONMENT=sandbox
+
+# AES-256-GCM encryption key for OAuth tokens stored in Firestore
+# Generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+QBO_ENCRYPTION_KEY=<64 hex chars>
+
+# HMAC secret for OAuth state parameter (CSRF protection)
+# Generate: node -e "console.log(require('crypto').randomBytes(24).toString('base64'))"
+QBO_OAUTH_STATE_SECRET=<random string ≥32 chars>
+
+# Firestore org document ID (same value in both vars)
+QBO_ORG_ID=hoi-housing-opportunities
+NEXT_PUBLIC_QBO_ORG_ID=hoi-housing-opportunities
+
+# Payroll timezone for time entry timestamps
+QBO_PAYROLL_TIMEZONE=America/New_York
+```
+
+#### 3. Create the Organization Document
+
+In Firestore Console, create `organizations/hoi-housing-opportunities`:
+
+| Field | Type | Value |
+|-------|------|-------|
+| `name` | string | `Housing Opportunities Inc.` |
+| `qrewInstance` | string | `Housing Workforce` |
+| `domain` | string | `housingopps.org` |
+| `createdAt` | timestamp | *(now)* |
+
+#### 4. Deploy Updated Rules
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+### Day-to-Day Payroll Workflow (ED)
+
+Once a pay period closes:
+
+1. **Admin → QuickBooks → Overview** — verify the connection shows **Connected**
+2. Click **Sync → Employees** and **Sync → Customers** to refresh the QBO roster cache
+3. Open the **Mappings** tab — confirm every active worker has a QBO Employee assigned and every worksite has a QBO Customer
+4. **Reports → Payroll** — set the date range to the pay period
+5. Click **Load Shifts** — all completed shifts for the period appear
+6. Click **Approve All Pending** (or approve individually)
+7. Click **Push to QBO** on each approved shift → it becomes a TimeActivity in QBO
+8. If any fail, fix the mapping or connection issue and use **Retry Failed** in Admin → QBO
+
+### Token Security
+
+OAuth tokens are stored in Firestore encrypted with **AES-256-GCM** using `QBO_ENCRYPTION_KEY`. Plaintext tokens never appear in logs or client-side code. If the key is compromised:
+1. Generate a new `QBO_ENCRYPTION_KEY`
+2. Disconnect QBO from Admin → QuickBooks (revokes the tokens at Intuit)
+3. Reconnect via OAuth (issues fresh tokens encrypted with the new key)
 
 ---
 

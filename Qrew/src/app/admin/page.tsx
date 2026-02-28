@@ -163,13 +163,12 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white max-w-md mx-auto">
       {/* Header */}
       <header className="border-b border-gray-100 px-4 py-3 flex items-center justify-between sticky top-0 bg-white z-20">
         <div>
-          <p className="text-[8px] text-gray-400 tracking-[0.4em] uppercase font-mono">Elder Systems</p>
-          <p className="text-[11px] font-bold tracking-[0.25em] uppercase font-mono"
-             style={{ color: 'var(--accent)' }}>Housing Workforce</p>
+          <p className="text-[11px] font-bold tracking-[0.25em] uppercase font-mono" style={{ color: 'var(--accent)' }}>Qrew</p>
+          <p className="text-[8px] text-gray-400 tracking-[0.4em] uppercase font-mono">Housing Workforce</p>
         </div>
         <button
           onClick={signOut}
@@ -326,7 +325,7 @@ export default function AdminPage() {
       </main>
 
       {/* Bottom navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-20 grid grid-cols-4">
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-100 z-20 grid grid-cols-4">
         <button onClick={() => router.push('/dashboard')} className="flex flex-col items-center justify-center gap-1 py-3 transition-colors" style={{ color: '#9ca3af' }}>
           <Clock className="w-5 h-5" /><span className="text-[10px] font-medium">Home</span>
         </button>

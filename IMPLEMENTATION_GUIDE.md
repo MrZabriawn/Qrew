@@ -357,6 +357,15 @@ In Firebase Console > Firestore:
 
 ## Phase 8: Testing the Complete Workflow (20 minutes)
 
+### Workflow Overview
+
+The clock-in flow is supervisor-gated. Workers **cannot** clock in until a Program Director
+explicitly starts the day. This ensures accurate day boundaries and prevents orphaned punches.
+
+Workers never use a generic "Clock Out" button. Instead they tap **Leave Early** if they must
+leave before the supervisor ends the day — this opens a modal that requires a written reason.
+The supervisor's "End Day" action closes all remaining open shifts automatically.
+
 ### Test Case: Complete Worksite Day
 
 1. **As Program Director**
@@ -368,48 +377,79 @@ In Firebase Console > Firestore:
    - Verify:
      ✓ SiteDay created in Firestore (status: OPEN)
      ✓ Calendar event created in "HOI Worksites" calendar
-     ✓ Event title: "Worksite Name — 2026-01-27"
-     ✓ Event description contains HOI TIME CLOCK header
+     ✓ Event title: "Worksite Name – Work Day"
+     ✓ Event description is initially empty (filled in as workers clock in)
    ```
 
-2. **As Technician (First Worker)**
+2. **Attempt clock-in before PD starts day (expected failure)**
    ```
-   - Sign in with TO account
-   - Go to Dashboard
-   - See open worksite day
-   - Click "Clock In"
+   - Sign in with worker account before PD has started the day
+   - Tap "Clock In"
+   - Verify:
+     ✓ Error: "The workday has not been started yet. Please wait for your supervisor."
+     ✓ No punch record created
+   ```
+
+3. **As Technician (First Worker)**
+   ```
+   - Sign in with TO account after PD has started the day
+   - Go to Dashboard — see the open worksite
+   - Tap "Clock In"
    - Verify:
      ✓ Punch record created (type: IN)
      ✓ UI shows "Clocked In" status
+     ✓ Button changes to "Leave Early"
    ```
 
-3. **As Technician (Second Worker)**
+4. **As Technician (Early Departure)**
    ```
-   - Sign in with different TO account
-   - Clock in to same worksite
-   - Work for a while
-   - Clock out
-   - Verify shift calculation
+   - Sign in with a different worker account, clock in
+   - Need to leave early — tap "Leave Early"
+   - Verify:
+     ✓ Modal appears requesting a reason
+     ✓ Cannot submit without entering a reason
+   - Enter reason (e.g. "Doctor appointment")
+   - Tap "Submit"
+   - Verify:
+     ✓ OUT punch created with reason field set
+     ✓ UI returns to "Clock In" state
    ```
 
-4. **Wait 5 Minutes**
+5. **Wait 5 Minutes**
    ```
    - Check Google Calendar event
-   - Verify CREW LOG updated with punch times
-   - Format: "2:30 PM IN — John Doe"
+   - Verify description updated with sections:
+
+     Crew Clock-Ins
+     John Smith – 7:58 AM
+     Marcus Hill – 8:02 AM
+
+     Early Departure
+     Marcus Hill – 1:12 PM – Doctor appointment – 5.1 hrs
    ```
 
-5. **As Program Director (End Day)**
+6. **As Program Director (End Day)**
    ```
    - Click "End Day"
    - Verify:
-     ✓ All open shifts force-closed
+     ✓ All open shifts force-closed with synthetic OUT punches
+     ✓ Shift records written to Firestore before SiteDay closes
      ✓ SiteDay status: CLOSED
-     ✓ Calendar event updated with:
-       - END-OF-DAY SUMMARY section
-       - Each worker's total hours
-       - SITE TOTAL hours
-       - "Closed By" information
+     ✓ Calendar event updated with final description:
+
+       Crew Clock-Ins
+       John Smith – 7:58 AM
+       Marcus Hill – 8:02 AM
+
+       Early Departure
+       Marcus Hill – 1:12 PM – Doctor appointment – 5.1 hrs
+
+       End of Day
+       John Smith – 8.0 hrs
+       Marcus Hill – 5.1 hrs
+       Total – 13.1 hrs
+       Ended by Jane Supervisor at 5:02 PM
+
      ✓ No further punches allowed for this siteDay
    ```
 
@@ -609,6 +649,38 @@ The system is production-ready and can scale with your organization's needs.
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: January 2026
-**Maintained By**: HOI IT Team
+## Changelog
+
+### Version 1.1 — February 2026
+
+**Supervisor-gated clock-in**
+- Workers can no longer create a SiteDay implicitly by clocking in.
+- If no OPEN SiteDay exists for the worksite on the current date, the Clock In tap shows
+  an error: "The workday has not been started yet. Please wait for your supervisor."
+- Only a Program Director or ED can start a day via the "Start Day" button.
+
+**Leave Early flow**
+- The "Clock Out" button has been replaced by **Leave Early** for worker roles.
+- Tapping Leave Early opens a bottom-sheet modal that requires a written reason before
+  the OUT punch is submitted.
+- The `reason` field is stored on the OUT Punch document and surfaced in the Calendar
+  "Early Departure" section.
+
+**Calendar event format**
+- Event title changed from `Worksite Name — YYYY-MM-DD` to `Worksite Name – Work Day`.
+- Description now uses named sections instead of a raw punch log:
+  - `Crew Clock-Ins` — one line per IN punch (`Name – 7:58 AM`)
+  - `Early Departure` — one line per early OUT punch (`Name – 1:12 PM – Reason – 5.1 hrs`)
+  - `End of Day` — appended on close; per-worker decimal hours, grand total, and supervisor
+- User IDs in the live description are resolved to display names via a batched Firestore read.
+
+**Shift write timing**
+- Shifts are now written to Firestore by `handleEndDay` (client) **before** the SiteDay
+  document is set to `CLOSED`, ensuring the `onSiteDayEnded` Cloud Function always finds
+  complete shift records when building the final calendar description.
+
+---
+
+**Document Version**: 1.1
+**Last Updated**: February 2026
+**Maintained By**: HOI IT Team / Elder Systems

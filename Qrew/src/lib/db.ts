@@ -33,6 +33,10 @@ import type {
   PunchType,
   PunchSource,
   SiteDayStatus,
+  QboEmployee,
+  QboCustomer,
+  QboEmployeeMapping,
+  QboCustomerMapping,
 } from '@/types';
 
 // ----- COLLECTION NAME CONSTANTS -----
@@ -399,4 +403,103 @@ export const updateReportArtifact = async (
   updates: Partial<ReportArtifact>
 ): Promise<void> => {
   await updateDoc(doc(db, REPORTS, reportId), updates);
+};
+
+// ===== QBO CLIENT-SIDE DATA ACCESS =====
+// Read QBO connection status and mapping data directly from Firestore using the client SDK.
+// All functions below require the caller to be authenticated as ED (enforced by Firestore rules).
+
+// Non-sensitive summary of a QBO OAuth connection — does not contain encrypted tokens.
+export interface QboStatusInfo {
+  status: 'active' | 'expired' | 'revoked' | 'disconnected';
+  realmId?: string;
+  connectedAt?: Date;
+  qboEnvironment?: 'sandbox' | 'production';
+}
+
+// Reads the QBO connection status from Firestore.
+// Returns null if no connection document exists (i.e., never connected).
+export const getQboConnectionStatus = async (orgId: string): Promise<QboStatusInfo | null> => {
+  const snap = await getDoc(doc(db, 'organizations', orgId, 'qboConnection', 'current'));
+  if (!snap.exists()) return null;
+  const d = snap.data();
+  return {
+    status: d.status as QboStatusInfo['status'],
+    realmId: d.realmId as string | undefined,
+    connectedAt: d.connectedAt instanceof Timestamp ? d.connectedAt.toDate() : undefined,
+    qboEnvironment: d.qboEnvironment as 'sandbox' | 'production' | undefined,
+  };
+};
+
+// Returns the cached QBO employee / vendor list for the org.
+// This is populated by the POST /api/qbo/sync/employees API route.
+export const getQboEmployeeCache = async (orgId: string): Promise<QboEmployee[]> => {
+  const snap = await getDocs(collection(db, 'organizations', orgId, 'qboEmployeeCache'));
+  return snap.docs.map(d => d.data() as QboEmployee);
+};
+
+// Returns the cached QBO customer list for the org.
+// This is populated by the POST /api/qbo/sync/customers API route.
+export const getQboCustomerCache = async (orgId: string): Promise<QboCustomer[]> => {
+  const snap = await getDocs(collection(db, 'organizations', orgId, 'qboCustomerCache'));
+  return snap.docs.map(d => d.data() as QboCustomer);
+};
+
+// Returns all Qrew user → QBO employee/vendor mappings for the org.
+export const getQboEmployeeMappings = async (orgId: string): Promise<QboEmployeeMapping[]> => {
+  const snap = await getDocs(collection(db, 'organizations', orgId, 'qboEmployeeMappings'));
+  return snap.docs.map(d => convertTimestamps({ ...d.data() }) as QboEmployeeMapping);
+};
+
+// Creates or replaces a Qrew user → QBO employee/vendor mapping.
+// Document ID is the Qrew userId so each user has exactly one mapping.
+export const setQboEmployeeMapping = async (
+  orgId: string,
+  userId: string,
+  data: Omit<QboEmployeeMapping, 'mappedAt'>
+): Promise<void> => {
+  await setDoc(doc(db, 'organizations', orgId, 'qboEmployeeMappings', userId), {
+    ...data,
+    mappedAt: Timestamp.now(),
+  });
+};
+
+// Deletes a Qrew user → QBO employee/vendor mapping.
+export const deleteQboEmployeeMapping = async (orgId: string, userId: string): Promise<void> => {
+  await deleteDoc(doc(db, 'organizations', orgId, 'qboEmployeeMappings', userId));
+};
+
+// Returns all Qrew worksite → QBO customer mappings for the org.
+export const getQboCustomerMappings = async (orgId: string): Promise<QboCustomerMapping[]> => {
+  const snap = await getDocs(collection(db, 'organizations', orgId, 'qboCustomerMappings'));
+  return snap.docs.map(d => convertTimestamps({ ...d.data() }) as QboCustomerMapping);
+};
+
+// Creates or replaces a Qrew worksite → QBO customer mapping.
+// Document ID is the Qrew worksiteId so each worksite has exactly one mapping.
+export const setQboCustomerMapping = async (
+  orgId: string,
+  worksiteId: string,
+  data: Omit<QboCustomerMapping, 'mappedAt'>
+): Promise<void> => {
+  await setDoc(doc(db, 'organizations', orgId, 'qboCustomerMappings', worksiteId), {
+    ...data,
+    mappedAt: Timestamp.now(),
+  });
+};
+
+// Deletes a Qrew worksite → QBO customer mapping.
+export const deleteQboCustomerMapping = async (orgId: string, worksiteId: string): Promise<void> => {
+  await deleteDoc(doc(db, 'organizations', orgId, 'qboCustomerMappings', worksiteId));
+};
+
+// Marks a shift as approved for QBO payroll push.
+// Sets approvalStatus → 'approved', records who approved and when.
+// ED and PD roles can write shifts (enforced by Firestore rules).
+export const approveShift = async (shiftId: string, approvedByUserId: string): Promise<void> => {
+  await updateDoc(doc(db, SHIFTS, shiftId), {
+    approvalStatus: 'approved',
+    approvedAt: Timestamp.now(),
+    approvedBy: approvedByUserId,
+  });
 };
